@@ -5,6 +5,10 @@ import {
   Search, ShieldCheck, Sparkles, Trophy, Users, Warehouse, X,
 } from "lucide-react";
 import { API_BASE_URL, api } from "./api.js";
+// EPIC-03 / EPIC-04 — booking calendar, slot holds, and alternative slots.
+import BookingWizard from "./features/booking/BookingWizard.jsx";
+import MyBookingsPanel from "./features/booking/MyBookingsPanel.jsx";
+import "./features/booking/booking.css";
 
 const NAV = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -89,54 +93,6 @@ function ResourceCard({ item, type, onBook }) {
   );
 }
 
-function BookingModal({ resource, user, onClose, onSaved }) {
-  const [form, setForm] = useState({ title: "", purpose: "", startAt: "", endAt: "", quantity: 1 });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
-  const submit = async (event) => {
-    event.preventDefault();
-    setSaving(true); setError("");
-    try {
-      await api.createBooking(user, {
-        resourceType: resource.type,
-        resourceId: resource.item.id,
-        title: form.title,
-        purpose: form.purpose || null,
-        quantity: Number(form.quantity || 1),
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
-        metadata: {},
-      });
-      onSaved();
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally { setSaving(false); }
-  };
-  return (
-    <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="modal-panel">
-        <button className="icon-button modal-close" onClick={onClose} aria-label="Close reservation form"><X size={20} /></button>
-        <p className="eyebrow">New reservation</p>
-        <h2>{resource.item.name}</h2>
-        <p className="modal-copy">Pick your slot and tell the Sports Committee what you need it for.</p>
-        <form className="form-grid" onSubmit={submit}>
-          <label className="field field-full">Booking title<input required name="title" value={form.title} onChange={update} placeholder="e.g. Section B football practice" /></label>
-          <label className="field field-full">Purpose<textarea name="purpose" value={form.purpose} onChange={update} rows="3" placeholder="Optional context for the approver" /></label>
-          <label className="field">Starts at<input required type="datetime-local" name="startAt" value={form.startAt} onChange={update} /></label>
-          <label className="field">Ends at<input required type="datetime-local" name="endAt" value={form.endAt} onChange={update} /></label>
-          {resource.type === "equipment" && <label className="field">Quantity<input required min="1" max={resource.item.quantity} type="number" name="quantity" value={form.quantity} onChange={update} /></label>}
-          {error && <p className="form-error field-full"><CircleAlert size={16} />{error}</p>}
-          <div className="modal-actions field-full">
-            <button type="button" className="button button-ghost" onClick={onClose}>Cancel</button>
-            <button className="button button-primary" disabled={saving}>{saving ? <LoaderCircle className="spin" size={17} /> : <CalendarDays size={17} />}Submit reservation</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 function Overview({ venues, equipment, bookings, matches, navigate, onBook }) {
   const nextBooking = bookings.filter((item) => new Date(item.startAt) > new Date() && !["cancelled", "rejected"].includes(item.status)).sort((a, b) => new Date(a.startAt) - new Date(b.startAt))[0];
   return (
@@ -187,13 +143,13 @@ function ResourcePage({ type, items, loading, onBook, refresh }) {
   );
 }
 
+// US-04D: the list itself lives in features/booking/MyBookingsPanel.jsx, which
+// adds upcoming/past tabs, a status filter, a countdown, and confirmed cancels.
 function BookingsPage({ bookings, loading, onCancel, navigate }) {
   return (
     <div className="page-stack">
       <header className="page-header"><div><p className="eyebrow">Your activity</p><h1>My bookings</h1><p>Track requests, approvals, upcoming slots, and cancellations.</p></div><button className="button button-primary" onClick={() => navigate("venues")}><Plus size={17} />New booking</button></header>
-      <section className="panel table-panel">
-        {loading ? <div className="center-loader"><LoaderCircle className="spin" /></div> : bookings.length ? <div className="booking-list">{bookings.map((booking) => <article className="booking-row" key={booking.id}><div className="date-badge"><strong>{new Date(booking.startAt).getDate()}</strong><span>{new Date(booking.startAt).toLocaleString("en", { month: "short" })}</span></div><div className="booking-main"><div><h3>{booking.title}</h3><p>{titleCase(booking.resourceType)} reservation · Qty {booking.quantity || 1}</p></div><div className="booking-time"><Clock3 size={16} /><span>{formatDate(booking.startAt)}<small>to {formatDate(booking.endAt)}</small></span></div></div><StatusPill value={booking.status} />{!["cancelled", "completed", "rejected"].includes(booking.status) && <button className="button button-danger-soft" onClick={() => onCancel(booking.id)}>Cancel</button>}</article>)}</div> : <EmptyState icon={CalendarDays} title="No bookings yet" copy="Your venue and equipment reservations will appear here." action={<button className="button button-primary" onClick={() => navigate("venues")}>Explore venues</button>} />}
-      </section>
+      <MyBookingsPanel bookings={bookings} loading={loading} onCancel={onCancel} navigate={navigate} />
     </div>
   );
 }
@@ -293,7 +249,9 @@ export default function App() {
   const navigate = (next) => { setPage(next); setMobileOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const openBooking = (item, type) => setBookingResource({ item, type });
   const bookingSaved = async () => { setBookingResource(null); notify("Reservation submitted successfully"); await loadCore(); setPage("bookings"); };
-  const cancelBooking = async (id) => { try { await api.cancelBooking(user, id); notify("Booking cancelled"); await loadCore(); } catch (error) { notify(error.message, "error"); } };
+  // Rethrows so MyBookingsPanel can show the failure on the row it belongs to,
+  // rather than only as a toast that has drifted away from the action.
+  const cancelBooking = async (id) => { try { await api.cancelBooking(user, id); notify("Booking cancelled"); await loadCore(); } catch (error) { notify(error.message, "error"); throw error; } };
   const decide = async (id, decision, comment) => { try { await api.decideApproval(user, id, { decision, comment: comment || undefined }); notify(`Booking ${decision === "approve" ? "approved" : "rejected"}`); await Promise.all([loadCore(), loadRoleData()]); } catch (error) { notify(error.message, "error"); } };
   const created = async (kind) => { notify(`${titleCase(kind)} added to inventory`); await Promise.all([loadCore(), loadRoleData()]); };
   const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : `Demo ${titleCase(role)}` })); setProfileOpen(false); };
@@ -327,7 +285,7 @@ export default function App() {
         </header>
         <main className="content">{content}</main>
       </div>
-      {bookingResource && <BookingModal resource={bookingResource} user={user} onClose={() => setBookingResource(null)} onSaved={bookingSaved} />}
+      {bookingResource && <BookingWizard resource={bookingResource} user={user} myBookingIds={bookings.map((booking) => booking.id)} onClose={() => setBookingResource(null)} onSaved={bookingSaved} />}
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );

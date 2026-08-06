@@ -38,6 +38,16 @@ export async function apiRequest(path, options = {}) {
   return payload;
 }
 
+/**
+ * True when the backend does not have this endpoint (or route) at all.
+ *
+ * EPIC-03/04 note: the frontend must stay usable against a backend deployed
+ * before the holds and recommendations APIs merged, so callers treat this as
+ * "feature unavailable" and fall back, rather than as an error to show the user.
+ */
+export const isMissingEndpoint = (error) =>
+  error instanceof ApiError && (error.status === 404 || error.status === 501);
+
 export const api = {
   health: () => apiRequest("/health"),
   publicVenues: (query) => apiRequest("/public/venues", { query }),
@@ -52,4 +62,19 @@ export const api = {
   createVenue: (user, body) => apiRequest("/venues", { method: "POST", user, body }),
   createEquipment: (user, body) => apiRequest("/equipment", { method: "POST", user, body }),
   audit: (user) => apiRequest("/admin/audit-log", { user, query: { limit: 12 } }),
+
+  // --- EPIC-03 / EPIC-04 -----------------------------------------------------
+
+  // Occupied slots, plus the blackout and hold layers on backends that send them.
+  availability: (query) => apiRequest("/public/availability", { query }),
+
+  // Slot holds (US-04B). All four may 404 on an older backend; callers check
+  // isMissingEndpoint and continue without the lock rather than failing.
+  publicHolds: (query) => apiRequest("/public/holds", { query }),
+  createHold: (user, body) => apiRequest("/holds", { method: "POST", user, body }),
+  releaseHold: (user, id) => apiRequest(`/holds/${id}`, { method: "DELETE", user }),
+  myHolds: (user) => apiRequest("/holds/mine", { user }),
+
+  // Alternative slots (US-05B). Falls back to recommendSlotsLocally in src/lib/slots.js.
+  recommendations: (query) => apiRequest("/public/recommendations", { query }),
 };
