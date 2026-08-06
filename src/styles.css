@@ -120,8 +120,8 @@ h1, h2, h3, .brand strong { font-family: "Manrope", sans-serif; }
 .calendar-tile strong { font: 800 24px/1 "Manrope"; }
 .calendar-tile span { margin-top: 4px; font-size: 10px; text-transform: uppercase; }
 .match-peek { margin-top: 13px; padding-top: 13px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); }
-.match-peek > span:last-child, .mini-item span { display: flex; flex-direction: column; }
-.match-peek small, .mini-item small { margin-top: 2px; color: var(--muted); }
+.match-peek > span:last-child { display: flex; flex-direction: column; }
+.match-peek small { margin-top: 2px; color: var(--muted); }
 .live-dot { width: 8px; height: 8px; background: #eb695d; border-radius: 50%; box-shadow: 0 0 0 5px #fde8e5; }
 
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -162,24 +162,11 @@ h1, h2, h3, .brand strong { font-family: "Manrope", sans-serif; }
 .booking-time small { margin-top: 3px; color: var(--muted); }
 .status { display: inline-flex; width: max-content; padding: 5px 8px; border-radius: 99px; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
 .status-approved, .status-completed { color: #176341; background: #e0f3e9; }
-.status-pending, .status-scheduled { color: #93610f; background: #fff1d6; }
+.status-pending, .status-scheduled, .status-upcoming { color: #93610f; background: #fff1d6; }
 .status-rejected, .status-cancelled { color: #9d3f3f; background: #fde7e4; }
 .status-live { color: #fff; background: #dc554c; }
 .status-neutral { color: #58655f; background: #edf0ee; }
 
-.sports-grid { display: grid; grid-template-columns: 1.45fr .75fr; gap: 20px; }
-.side-stack { display: grid; align-content: start; gap: 20px; }
-.fixtures { display: grid; gap: 10px; }
-.fixture { display: grid; grid-template-columns: 1fr 1.5fr auto; align-items: center; gap: 14px; padding: 15px; background: #f7f9f6; border-radius: 13px; }
-.fixture > div:first-child { display: flex; flex-direction: column; }
-.fixture > div:first-child span { color: var(--green-700); font-size: 10px; font-weight: 800; text-transform: uppercase; }
-.fixture small { margin-top: 3px; color: var(--muted); font-size: 10px; }
-.teams { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; }
-.teams span { color: #9ba49f; font-size: 10px; }
-.mini-item { margin-top: 13px; display: flex; align-items: center; gap: 10px; padding-top: 13px; border-top: 1px solid var(--line); }
-.mini-item svg { color: var(--green-700); }
-.mini-item strong { font-size: 12px; }
-.mini-item small { font-size: 10px; }
 .muted-copy { color: var(--muted); line-height: 1.5; }
 
 .count-chip { padding: 8px 12px; color: #86601b; background: #fff0d4; border-radius: 99px; font-size: 12px; font-weight: 700; }
@@ -250,7 +237,7 @@ h1, h2, h3, .brand strong { font-family: "Manrope", sans-serif; }
   .hero { min-height: 360px; padding: 38px 32px; }
   .hero-mark { right: 2%; }
   .stat-grid { grid-template-columns: 1fr; }
-  .overview-grid, .sports-grid { grid-template-columns: 1fr; }
+  .overview-grid { grid-template-columns: 1fr; }
   .booking-row { grid-template-columns: auto minmax(0, 1fr) auto; }
   .booking-main { grid-template-columns: 1fr; }
   .booking-row > .button { grid-column: 2 / -1; justify-self: start; }
@@ -270,8 +257,6 @@ h1, h2, h3, .brand strong { font-family: "Manrope", sans-serif; }
   .booking-row { grid-template-columns: auto 1fr; }
   .booking-row > .status { grid-column: 2; }
   .booking-row > .button { grid-column: 2; }
-  .fixture { grid-template-columns: 1fr auto; }
-  .fixture .teams { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
   .form-grid { grid-template-columns: 1fr; }
   .field { grid-column: 1; }
   .modal-panel { padding: 26px 20px; }

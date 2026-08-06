@@ -1,0 +1,108 @@
+/* Fixtures & Schedule (demo — see README.md in this directory). All classes
+   are prefixed `fx-`, mirroring the booking module's `bk-` convention, so
+   merges here never conflict with the app shell's own styles.css. Shared
+   primitives — .panel, .status*, .modal-*, .form-grid, .field*,
+   .icon-button, .button*, .text-button, .live-dot — come from the global
+   stylesheet; this file only holds what's specific to fixture cards and the
+   schedule modal. */
+
+/* min-width: 0 stops this grid item's intrinsic content width (the scroll
+   track's fixed-width cards) from bubbling up and stretching .page-stack —
+   the classic grid/flex "overflow content widens the whole page" bug. */
+.fx-panel { min-width: 0; }
+.fx-header-actions { display: flex; align-items: center; gap: 14px; }
+.fx-row { display: flex; align-items: center; gap: 10px; }
+.fx-viewport { min-width: 0; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; }
+.fx-viewport::-webkit-scrollbar { display: none; }
+/* align-items: flex-start (not the flex default "stretch") so editing one
+   card — which adds extra input rows and grows it — never forces every
+   other card in the row to match its height. Each card owns its own size. */
+.fx-track { display: flex; align-items: flex-start; gap: 14px; }
+.fx-arrow { flex: 0 0 auto; }
+.fx-card { flex: 0 0 280px; width: 280px; min-height: 208px; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #f7f9f6; border-radius: 15px; }
+.fx-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fx-sport { overflow: hidden; color: var(--green-700); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.fx-stage { margin: 0; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.fx-edit-fields { display: grid; gap: 6px; }
+.fx-field-input { width: 100%; padding: 7px 9px; color: var(--ink); background: #fff; border: 1px solid #d9dfda; border-radius: 8px; outline: 0; font-size: 12px; }
+.fx-field-input:focus { border-color: #6a9c85; box-shadow: 0 0 0 3px rgba(45,112,83,.1); }
+.fx-teams { display: grid; gap: 6px; }
+.fx-team { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; font-size: 13px; }
+.fx-team > span { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-team strong { flex: 0 0 auto; font: 800 14px/1 "Manrope"; }
+.fx-vs { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 0; text-align: center; }
+.fx-vs strong { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-vs span { flex: 0 0 auto; color: #9ba49f; font-size: 10px; }
+.fx-note { margin: 0; display: flex; align-items: center; gap: 7px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--line); color: #3e4b46; font-size: 11px; }
+.fx-note-icon { display: flex; flex: 0 0 auto; align-items: center; }
+.fx-note-text { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-input { width: 120px; padding: 7px 9px; color: var(--ink); background: #fff; border: 1px solid #d9dfda; border-radius: 8px; outline: 0; font-size: 12px; font-weight: 700; text-align: right; }
+.fx-input:focus { border-color: #6a9c85; box-shadow: 0 0 0 3px rgba(45,112,83,.1); }
+.fx-name-input { flex: 1 1 auto; min-width: 0; width: auto; text-align: left; }
+.fx-note-input { width: 100%; margin-top: 2px; text-align: left; font-weight: 400; }
+.fx-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+.fx-actions-primary { display: flex; gap: 6px; }
+.fx-delete { margin-right: auto; color: #a64343; background: #fff1ef; border-color: #f2d5d1; }
+.fx-btn { min-height: auto; padding: 6px 10px; font-size: 11px; white-space: nowrap; }
+.fx-confirm { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--line); }
+.fx-confirm > span { color: #7a423f; font-size: 11px; font-weight: 700; }
+.fx-confirm-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+.fx-schedule-panel { width: min(680px, 100%); }
+.fx-schedule-title-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.fx-schedule-title-row h2 { margin: 0; }
+.fx-schedule-days { display: grid; gap: 22px; margin-top: 4px; }
+.fx-schedule-day h3 { margin-bottom: 10px; color: var(--green-700); font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.fx-schedule-list { display: grid; gap: 8px; }
+.fx-schedule-row { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 14px; padding: 12px; background: #f7f9f6; border-radius: 12px; }
+.fx-schedule-row-editable { grid-template-columns: 70px 1fr auto auto; }
+.fx-schedule-time { overflow: hidden; color: var(--muted); font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+/* min-width: 0 on the grid item stops long unbroken text (e.g. a very long
+   team/venue name) from forcing the 1fr track — and this row's fixed-width
+   siblings' alignment with it — wider than the modal. Same fix pattern as
+   .fx-panel above. */
+.fx-schedule-main { min-width: 0; }
+.fx-schedule-sport { margin: 0; overflow: hidden; color: var(--green-700); font-size: 10px; font-weight: 800; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.fx-schedule-teams { margin: 4px 0 0; overflow: hidden; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.fx-schedule-venue { margin: 4px 0 0; display: flex; align-items: center; gap: 4px; min-width: 0; color: var(--muted); font-size: 11px; }
+.fx-schedule-venue span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-schedule-result { margin: 4px 0 0; overflow: hidden; color: #3e4b46; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.fx-schedule-confirm-text { margin: 0; color: #7a423f; font-size: 12px; font-weight: 600; }
+.fx-schedule-time-input, .fx-schedule-field-input { width: 100%; padding: 6px 8px; color: var(--ink); background: #fff; border: 1px solid #d9dfda; border-radius: 7px; outline: 0; font-size: 12px; }
+.fx-schedule-time-input:focus, .fx-schedule-field-input:focus { border-color: #6a9c85; box-shadow: 0 0 0 3px rgba(45,112,83,.1); }
+.fx-schedule-field-input { margin-bottom: 5px; font-weight: 700; }
+.fx-schedule-field-input:last-child { margin-bottom: 0; font-weight: 400; }
+.fx-schedule-actions { display: flex; flex-direction: column; gap: 5px; }
+.fx-schedule-btn { width: 30px; height: 30px; }
+.fx-schedule-btn-danger { color: #a64343; background: #fff1ef; border-color: #f2d5d1; }
+
+.fx-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.fx-points-panel { width: min(760px, 100%); }
+/* overflow-x here, not on .fx-points-panel, is what keeps a table wider than
+   the modal from pushing the modal itself wider than its fixed width — the
+   table scrolls internally instead. */
+.fx-points-wrap { overflow-x: auto; margin-top: 4px; }
+.fx-points-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fx-points-table th, .fx-points-table td { padding: 10px 12px; white-space: nowrap; text-align: center; }
+.fx-points-table thead th { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+.fx-points-rank-head, .fx-points-rank { width: 30px; text-align: center; }
+.fx-points-section-head, .fx-points-section { text-align: left; }
+.fx-points-section { font-weight: 700; }
+.fx-points-table tbody tr { border-bottom: 1px solid var(--line); }
+.fx-points-table tbody tr:last-child { border-bottom: 0; }
+.fx-points-table tbody tr:nth-child(-n+3) .fx-points-rank { color: var(--green-700); font-weight: 800; }
+.fx-points-row-editing { background: #f7f9f6; }
+.fx-points-total { color: var(--green-900); font-weight: 800; }
+.fx-points-input { width: 52px; padding: 5px 6px; color: var(--ink); background: #fff; border: 1px solid #d9dfda; border-radius: 6px; outline: 0; font-size: 12px; text-align: center; }
+.fx-points-input:focus { border-color: #6a9c85; box-shadow: 0 0 0 3px rgba(45,112,83,.1); }
+.fx-points-actions-head { width: 60px; }
+.fx-points-actions { display: flex; justify-content: center; gap: 4px; }
+
+@media (max-width: 600px) {
+  .fx-card { flex-basis: 230px; width: 230px; }
+  .fx-schedule-row, .fx-schedule-row-editable { grid-template-columns: 55px 1fr; }
+  .fx-schedule-row > .status { grid-column: 2; margin-top: 6px; justify-self: start; }
+  .fx-schedule-row-editable > .status { grid-column: 2; margin-top: 6px; justify-self: start; }
+  .fx-schedule-row-editable > .fx-schedule-actions { grid-column: 2; flex-direction: row; margin-top: 6px; }
+  .fx-points-table th, .fx-points-table td { padding: 8px 9px; }
+}

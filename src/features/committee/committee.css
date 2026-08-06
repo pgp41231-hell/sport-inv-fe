@@ -1,0 +1,25 @@
+/* Sports Committee (demo — see demoData.js). Classes prefixed `cm-`, same
+   convention as `bk-`/`fx-`/`tm-` in the other feature modules. Shared
+   primitives — .section-heading, .eyebrow, .muted-copy, .tag, .panel —
+   come from the global stylesheet. */
+
+.cm-section { min-width: 0; }
+.cm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 4px; }
+.cm-card { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 18px; background: #f7f9f6; border-radius: 15px; }
+.cm-card-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cm-avatar { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; color: #fff; background: var(--green-700); border-radius: 50%; font-weight: 700; font-size: 13px; }
+.cm-card-head { min-width: 0; }
+.cm-card-head strong { display: block; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.cm-card-head small { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.cm-tag { width: max-content; }
+.cm-contact { display: flex; align-items: center; gap: 7px; overflow: hidden; color: #4d5b55; text-decoration: none; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.cm-contact:hover { color: var(--green-700); text-decoration: underline; }
+.cm-contact svg { flex: 0 0 auto; color: var(--green-700); }
+
+@media (max-width: 1100px) {
+  .cm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .cm-grid { grid-template-columns: 1fr; }
+}
