@@ -1,4 +1,4 @@
-# Beginner developer guide
+#  Developer guide
 
 This project has two GitHub repositories:
 
