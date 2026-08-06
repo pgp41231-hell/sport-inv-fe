@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test test/*.test.js",
+    "test:components": "vitest run",
+    "test:all": "npm test && npm run test:components"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -15,5 +18,11 @@
     "react-dom": "latest",
     "lucide-react": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
+  }
 }
