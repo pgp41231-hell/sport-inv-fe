@@ -42,9 +42,17 @@ const DEFAULT_USER = {
   role: "admin",
 };
 
+const ROLE_LABELS = {
+  requester: "Student",
+  approver: "SportComm Member",
+};
+
 const formatDate = (value, options = {}) => value
   ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: options.time === false ? undefined : "short" }).format(new Date(value))
   : "—";
+
+const titleCase = (value = "") => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+const roleLabel = (role) => ROLE_LABELS[role] || titleCase(role);
 
 function Toast({ toast, onClose }) {
   useEffect(() => {
@@ -386,6 +394,7 @@ export default function App() {
     ? [NAV.find((item) => item.id === "sports")?.label, "Tournaments", selectedTournament?.name].filter(Boolean)
     : [NAV.find((item) => item.id === page)?.label];
   const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : `Demo ${titleCase(role)}` })); setProfileOpen(false); };
+  const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : roleLabel(role) })); setProfileOpen(false); };
 
   const content = {
     overview: <Overview venues={venues} equipment={equipment} bookings={bookings} matches={matches} navigate={navigate} onBook={openBooking} />,
@@ -433,8 +442,8 @@ export default function App() {
             ])}
           </div>
           <div className="profile-wrap">
-            <button className="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label={`Switch demo identity. Current role: ${user.role}`}><span className="avatar">{user.name.split(" ").map((word) => word[0]).slice(0, 2).join("")}</span><span><strong>{user.name}</strong><small>{titleCase(user.role)} mode</small></span><ChevronDown size={16} /></button>
-            {profileOpen && <div className="profile-menu"><p>Demo identity</p>{["requester", "approver", "scorekeeper", "admin"].map((role) => <button key={role} className={user.role === role ? "active" : ""} onClick={() => changeRole(role)}><span>{titleCase(role)}</span>{user.role === role && <Check size={15} />}</button>)}</div>}
+            <button className="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label={`Switch demo identity. Current role: ${roleLabel(user.role)}`}><span className="avatar">{user.name.split(" ").map((word) => word[0]).slice(0, 2).join("")}</span><span><strong>{user.name}</strong><small>{roleLabel(user.role)} mode</small></span><ChevronDown size={16} /></button>
+            {profileOpen && <div className="profile-menu"><p>Demo identity</p>{["requester", "approver", "scorekeeper", "admin"].map((role) => <button key={role} className={user.role === role ? "active" : ""} onClick={() => changeRole(role)}><span>{roleLabel(role)}</span>{user.role === role && <Check size={15} />}</button>)}</div>}
           </div>
         </header>
         <main className="content">{content}</main>
