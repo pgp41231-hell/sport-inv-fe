@@ -393,7 +393,6 @@ export default function App() {
   const breadcrumbTrail = page === "sports" && (tournamentsPageView === "gallery" || selectedTournament)
     ? [NAV.find((item) => item.id === "sports")?.label, "Tournaments", selectedTournament?.name].filter(Boolean)
     : [NAV.find((item) => item.id === page)?.label];
-  const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : `Demo ${titleCase(role)}` })); setProfileOpen(false); };
   const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : roleLabel(role) })); setProfileOpen(false); };
 
   const content = {
