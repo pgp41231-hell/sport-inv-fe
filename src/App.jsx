@@ -51,7 +51,7 @@ const formatDate = (value, options = {}) => value
   ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: options.time === false ? undefined : "short" }).format(new Date(value))
   : "—";
 
-const titleCase = (value = "") => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+ titleCase = (value = "") => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 const roleLabel = (role) => ROLE_LABELS[role] || titleCase(role);
 
 function Toast({ toast, onClose }) {
