@@ -1,0 +1,78 @@
+/* Tournaments (demo — see README.md in this directory). All classes are
+   prefixed `tm-`, mirroring the booking module's `bk-` and the fixtures
+   module's `fx-` convention, so merges here never conflict with the app
+   shell's own styles.css or the other feature modules. Shared primitives —
+   .panel, .modal-*, .form-grid, .field*, .icon-button, .button*,
+   .text-button, .eyebrow, .section-heading, .muted-copy — come from the
+   global stylesheet; this file only holds what's specific to the two
+   tournament boxes and the gallery. */
+
+.tm-panel { min-width: 0; }
+.tm-boxes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.tm-box { min-width: 0; overflow: hidden; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 5px 18px rgba(24,52,43,.035); text-align: left; }
+.tm-box-link { cursor: pointer; transition: .2s ease; }
+.tm-box-link:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.tm-box-cover { height: 110px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; color: rgba(255,255,255,.92); }
+.tm-box-cover::before, .tm-gallery-cover::before { content: ""; position: absolute; width: 130px; height: 130px; right: -30px; top: -40px; border: 16px solid rgba(255,255,255,.15); border-radius: 50%; }
+.tm-box-cover svg, .tm-gallery-cover svg { position: relative; z-index: 1; }
+.tm-cover-1 { background: linear-gradient(135deg, #1f684f, #4fae86); }
+.tm-cover-2 { background: linear-gradient(135deg, #a96d11, #e2ac4c); }
+.tm-cover-3 { background: linear-gradient(135deg, #234a72, #5f93c7); }
+.tm-cover-4 { background: linear-gradient(135deg, #0e5f5f, #48a89a); }
+.tm-box-body { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 20px; }
+.tm-box-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink); }
+.tm-box-head h3 { margin: 0; font-size: 16px; }
+
+.tm-upcoming-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.tm-upcoming-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: #f7f9f6; border-radius: 12px; }
+.tm-upcoming-item > div:first-child { min-width: 0; }
+.tm-upcoming-item strong { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.tm-upcoming-item small { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.tm-upcoming-edit { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.tm-confirm-text { margin: 0; color: #7a423f; font-size: 12px; font-weight: 600; }
+.tm-item-actions { display: flex; flex: 0 0 auto; gap: 4px; }
+.tm-item-btn { width: 28px; height: 28px; }
+.tm-item-btn-danger { color: #a64343; background: #fff1ef; border-color: #f2d5d1; }
+.tm-field-input { width: 100%; padding: 7px 9px; color: var(--ink); background: #fff; border: 1px solid #d9dfda; border-radius: 8px; outline: 0; font-size: 12px; }
+.tm-field-input:focus { border-color: #6a9c85; box-shadow: 0 0 0 3px rgba(45,112,83,.1); }
+
+.tm-back-link { margin-bottom: 9px; display: inline-flex; align-items: center; gap: 5px; padding: 0; color: var(--muted); background: transparent; border: 0; font-size: 12px; font-weight: 700; }
+.tm-back-link:hover { color: var(--green-700); }
+.tm-gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 4px; }
+/* .tm-gallery-card is a <button> (the whole card is the click target, into
+   the tournament's detail page) — text-align/cursor reset what buttons
+   default to; everything else matches .resource-card's look exactly. */
+.tm-gallery-card { min-width: 0; overflow: hidden; display: flex; flex-direction: column; text-align: left; cursor: pointer; background: #fff; border: 1px solid var(--line); border-radius: 19px; box-shadow: 0 4px 15px rgba(20,50,40,.03); transition: .2s ease; }
+.tm-gallery-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.tm-gallery-cover { height: 115px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; color: rgba(255,255,255,.92); }
+.tm-gallery-body { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 18px; }
+.tm-gallery-body h3 { margin: 0; overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.tm-gallery-body p { margin: 0; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+.tm-detail-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.tm-detail-cover { height: 150px; margin-bottom: 18px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; color: rgba(255,255,255,.92); border-radius: 16px; }
+.tm-detail-cover::before { content: ""; position: absolute; width: 170px; height: 170px; right: -35px; top: -50px; border: 20px solid rgba(255,255,255,.15); border-radius: 50%; }
+.tm-detail-cover svg { position: relative; z-index: 1; }
+.tm-detail-meta { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; color: var(--muted); font-size: 13px; }
+.tm-detail-meta-item { display: flex; align-items: center; gap: 5px; }
+.tm-detail-description { margin: 0; color: #3e4b46; font-size: 14px; line-height: 1.65; }
+.tm-detail-subhead { margin: 22px 0 12px; color: var(--green-700); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.tm-detail-form { margin-top: 4px; }
+.tm-moments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+.tm-moment { height: 90px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden; color: rgba(255,255,255,.95); border-radius: 13px; font-size: 11px; font-weight: 700; }
+.tm-moment svg { position: relative; z-index: 1; }
+.tm-moment span { position: relative; z-index: 1; }
+
+@media (max-width: 1100px) {
+  .tm-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .tm-boxes { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .tm-gallery-grid { grid-template-columns: 1fr; }
+  .tm-upcoming-item { flex-wrap: wrap; }
+  .tm-detail-meta { flex-wrap: wrap; gap: 8px; }
+}

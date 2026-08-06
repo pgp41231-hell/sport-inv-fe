@@ -2,13 +2,28 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowRight, BadgeCheck, CalendarDays, Check, ChevronDown, CircleAlert,
   Clock3, Dumbbell, Home, LayoutDashboard, LoaderCircle, MapPin, Menu, Plus,
-  Search, ShieldCheck, Sparkles, Trophy, Users, Warehouse, X,
+  Search, ShieldCheck, Sparkles, Trophy, Warehouse, X,
 } from "lucide-react";
 import { API_BASE_URL, api } from "./api.js";
+import { titleCase } from "./lib/format.js";
 // EPIC-03 / EPIC-04 — booking calendar, slot holds, and alternative slots.
 import BookingWizard from "./features/booking/BookingWizard.jsx";
 import MyBookingsPanel from "./features/booking/MyBookingsPanel.jsx";
 import "./features/booking/booking.css";
+// Fixtures & schedule (demo — no backend endpoint exists yet). See
+// src/features/fixtures/README.md.
+import FixturesPanel from "./features/fixtures/FixturesPanel.jsx";
+import { FIXTURES_DEMO, POINTS_TABLE_DEMO, SCHEDULE_DEMO } from "./features/fixtures/demoData.js";
+import "./features/fixtures/fixtures.css";
+// Tournaments (demo — no backend endpoint exists yet). See
+// src/features/tournaments/README.md.
+import TournamentsPanel from "./features/tournaments/TournamentsPanel.jsx";
+import { PAST_TOURNAMENTS_DEMO, UPCOMING_TOURNAMENTS_DEMO } from "./features/tournaments/demoData.js";
+import "./features/tournaments/tournaments.css";
+// Sports Committee (demo — no backend data yet, see demoData.js).
+import CommitteePanel from "./features/committee/CommitteePanel.jsx";
+import { COMMITTEE_DEMO } from "./features/committee/demoData.js";
+import "./features/committee/committee.css";
 
 const NAV = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -30,8 +45,6 @@ const DEFAULT_USER = {
 const formatDate = (value, options = {}) => value
   ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: options.time === false ? undefined : "short" }).format(new Date(value))
   : "—";
-
-const titleCase = (value = "") => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 function Toast({ toast, onClose }) {
   useEffect(() => {
@@ -154,14 +167,39 @@ function BookingsPage({ bookings, loading, onCancel, navigate }) {
   );
 }
 
-function SportsPage({ matches, tournaments, committee }) {
+function SportsPage({
+  fixtures, canEditScores, onUpdateFixture, onAddFixture, onDeleteFixture,
+  schedule, onUpdateScheduleMatch, onAddScheduleMatch, onDeleteScheduleMatch,
+  points, onUpdatePointsSection,
+  upcomingTournaments, pastTournaments, canEditTournaments,
+  onAddUpcomingTournament, onUpdateUpcomingTournament, onDeleteUpcomingTournament,
+  onAddPastTournament, onUpdatePastTournament, onDeletePastTournament,
+  tournamentsView, selectedTournament, onOpenTournamentGallery, onOpenTournament, onBackTournaments,
+}) {
+  // Fixtures and Sports Committee are the "Fixtures & events" landing page's
+  // own content — once Tournaments has drilled into the gallery or a
+  // specific tournament (its own breadcrumb trail, feels like its own page),
+  // showing them above/below would just be clutter around that page. Only
+  // the "main" two-box Tournaments view still shares the page with them.
+  const onLandingView = tournamentsView === "main";
   return (
     <div className="page-stack">
-      <header className="page-header"><div><p className="eyebrow">Campus competition</p><h1>Fixtures & events</h1><p>Follow Sangram, Mahasangram, Sangharsh, and campus sports.</p></div></header>
-      <div className="sports-grid">
-        <section className="panel matches-panel"><div className="section-heading"><div><p className="eyebrow">Fixtures</p><h2>Upcoming matches</h2></div></div>{matches.length ? <div className="fixtures">{matches.map((match) => <article className="fixture" key={match.id}><div><span>{titleCase(match.sport)}</span><small>{formatDate(match.startsAt)}</small></div><div className="teams"><strong>{match.homeTeam}</strong><span>vs</span><strong>{match.awayTeam}</strong></div><StatusPill value={match.status} /></article>)}</div> : <EmptyState icon={Trophy} title="Fixtures coming soon" copy="Scorekeepers can publish upcoming matches here." />}</section>
-        <aside className="side-stack"><section className="panel"><p className="eyebrow">Tournaments</p><h2>On campus</h2>{tournaments.length ? tournaments.map((item) => <div className="mini-item" key={item.id}><Trophy size={18} /><span><strong>{item.name}</strong><small>{titleCase(item.status)}</small></span></div>) : <p className="muted-copy">No published tournaments yet.</p>}</section><section className="panel"><p className="eyebrow">Sports Committee</p><h2>Need help?</h2>{committee.length ? committee.slice(0, 3).map((member) => <div className="mini-item" key={member.id}><Users size={18} /><span><strong>{member.name}</strong><small>{member.title}</small></span></div>) : <p className="muted-copy">Committee contacts will appear here once published.</p>}</section></aside>
-      </div>
+      {onLandingView && <header className="page-header"><div><p className="eyebrow">Campus competition</p><h1>Fixtures & events</h1><p>Follow Sangram, Mahasangram, Sangharsh, and campus sports.</p></div></header>}
+      {onLandingView && (
+        <FixturesPanel
+          fixtures={fixtures} canEdit={canEditScores} onUpdateFixture={onUpdateFixture} onAddFixture={onAddFixture} onDeleteFixture={onDeleteFixture}
+          schedule={schedule} onUpdateScheduleMatch={onUpdateScheduleMatch} onAddScheduleMatch={onAddScheduleMatch} onDeleteScheduleMatch={onDeleteScheduleMatch}
+          points={points} onUpdatePointsSection={onUpdatePointsSection}
+        />
+      )}
+      <TournamentsPanel
+        view={tournamentsView} selectedTournament={selectedTournament}
+        upcoming={upcomingTournaments} past={pastTournaments} canEdit={canEditTournaments}
+        onAddUpcoming={onAddUpcomingTournament} onUpdateUpcoming={onUpdateUpcomingTournament} onDeleteUpcoming={onDeleteUpcomingTournament}
+        onAddPast={onAddPastTournament} onUpdatePast={onUpdatePastTournament} onDeletePast={onDeletePastTournament}
+        onOpenGallery={onOpenTournamentGallery} onOpenTournament={onOpenTournament} onBack={onBackTournaments}
+      />
+      {onLandingView && <CommitteePanel committee={COMMITTEE_DEMO} />}
     </div>
   );
 }
@@ -214,19 +252,34 @@ export default function App() {
   const [equipment, setEquipment] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [tournaments, setTournaments] = useState([]);
-  const [committee, setCommittee] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [audit, setAudit] = useState([]);
+  // DEMO — local-only state for the example fixtures; see FIXTURES_DEMO.
+  const [fixtures, setFixtures] = useState(FIXTURES_DEMO);
+  // DEMO — local-only state for the example schedule; see SCHEDULE_DEMO.
+  const [schedule, setSchedule] = useState(SCHEDULE_DEMO);
+  // DEMO — local-only state for the example points table; see POINTS_TABLE_DEMO.
+  const [points, setPoints] = useState(POINTS_TABLE_DEMO);
+  // DEMO — local-only state for the example tournaments; see demoData.js in
+  // features/tournaments. The real GET /public/tournaments fetch (which only
+  // ever returned {id, name, status}, no dates or history) was dropped from
+  // loadCore below in favor of these two, superseding it entirely.
+  const [upcomingTournaments, setUpcomingTournaments] = useState(UPCOMING_TOURNAMENTS_DEMO);
+  const [pastTournaments, setPastTournaments] = useState(PAST_TOURNAMENTS_DEMO);
+  // Sub-navigation within the Fixtures & events tab: "main" (the two boxes)
+  // or "gallery" (the past-tournaments grid). A selected tournament id
+  // always means "show its detail page", regardless of this value — see
+  // tournamentsView below and TournamentsPanel's README §4.
+  const [tournamentsView, setTournamentsView] = useState("main");
+  const [selectedTournamentId, setSelectedTournamentId] = useState(null);
 
   const notify = useCallback((message, type = "success") => setToast({ message, type }), []);
   const loadCore = useCallback(async () => {
     setLoading(true);
     const results = await Promise.allSettled([
       api.publicVenues(), api.publicEquipment(), api.bookings(user), api.publicContent("matches"),
-      api.publicContent("tournaments"), api.publicContent("committee"),
     ]);
-    const setters = [setVenues, setEquipment, setBookings, setMatches, setTournaments, setCommittee];
+    const setters = [setVenues, setEquipment, setBookings, setMatches];
     results.forEach((result, index) => { if (result.status === "fulfilled") setters[index](result.value.data || []); });
     const failure = results.find((result) => result.status === "rejected");
     if (failure) notify(failure.reason.message || "Some data could not be loaded", "error");
@@ -254,6 +307,84 @@ export default function App() {
   const cancelBooking = async (id) => { try { await api.cancelBooking(user, id); notify("Booking cancelled"); await loadCore(); } catch (error) { notify(error.message, "error"); throw error; } };
   const decide = async (id, decision, comment) => { try { await api.decideApproval(user, id, { decision, comment: comment || undefined }); notify(`Booking ${decision === "approve" ? "approved" : "rejected"}`); await Promise.all([loadCore(), loadRoleData()]); } catch (error) { notify(error.message, "error"); } };
   const created = async (kind) => { notify(`${titleCase(kind)} added to inventory`); await Promise.all([loadCore(), loadRoleData()]); };
+  // DEMO — local-only add/edit/delete for the example fixtures; no backend to persist to yet.
+  const updateFixture = (id, patch) => {
+    setFixtures((current) => current.map((match) => match.id === id ? { ...match, ...patch } : match));
+    notify("Fixture updated (example data, not saved to a server)");
+  };
+  const addFixture = (fixture) => {
+    setFixtures((current) => [...current, fixture]);
+    notify("Fixture added (example data, not saved to a server)");
+  };
+  const deleteFixture = (id) => {
+    setFixtures((current) => current.filter((match) => match.id !== id));
+    notify("Fixture deleted (example data, not saved to a server)");
+  };
+  // DEMO — local-only add/edit/delete for the example schedule; no backend to persist to yet.
+  const updateScheduleMatch = (id, patch) => {
+    setSchedule((current) => current.map((group) => ({
+      ...group,
+      matches: group.matches.map((match) => match.id === id ? { ...match, ...patch } : match),
+    })));
+    notify("Schedule updated (example data, not saved to a server)");
+  };
+  const addScheduleMatch = (day, match) => {
+    setSchedule((current) => current.map((group) => group.day === day ? { ...group, matches: [...group.matches, match] } : group));
+    notify("Schedule entry added (example data, not saved to a server)");
+  };
+  const deleteScheduleMatch = (id) => {
+    setSchedule((current) => current.map((group) => ({ ...group, matches: group.matches.filter((match) => match.id !== id) })));
+    notify("Schedule entry deleted (example data, not saved to a server)");
+  };
+  // DEMO — local-only edit for the example points table; no backend to persist to yet.
+  const updatePointsSection = (section, scores) => {
+    setPoints((current) => current.map((row) => row.section === section ? { ...row, scores } : row));
+    notify("Points table updated (example data, not saved to a server)");
+  };
+  // DEMO — local-only add/edit/delete for the example tournaments; no backend to persist to yet.
+  const addUpcomingTournament = (tournament) => {
+    setUpcomingTournaments((current) => [...current, tournament]);
+    notify("Tournament added (example data, not saved to a server)");
+  };
+  const updateUpcomingTournament = (id, patch) => {
+    setUpcomingTournaments((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+    notify("Tournament updated (example data, not saved to a server)");
+  };
+  const deleteUpcomingTournament = (id) => {
+    setUpcomingTournaments((current) => current.filter((item) => item.id !== id));
+    notify("Tournament deleted (example data, not saved to a server)");
+  };
+  const addPastTournament = (tournament) => {
+    setPastTournaments((current) => [...current, tournament]);
+    notify("Tournament added (example data, not saved to a server)");
+  };
+  const updatePastTournament = (id, patch) => {
+    setPastTournaments((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+    notify("Tournament updated (example data, not saved to a server)");
+  };
+  const deletePastTournament = (id) => {
+    setPastTournaments((current) => current.filter((item) => item.id !== id));
+    notify("Tournament deleted (example data, not saved to a server)");
+  };
+  // Sub-navigation for the Tournaments section of the Fixtures & events tab
+  // (main two-box view / gallery / a specific tournament's detail page) —
+  // see tournamentsView/selectedTournamentId above for why this lives here
+  // instead of inside TournamentsPanel.
+  const openTournamentGallery = () => { setTournamentsView("gallery"); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const openTournament = (id) => { setSelectedTournamentId(id); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const backTournaments = () => {
+    if (selectedTournamentId) setSelectedTournamentId(null);
+    else setTournamentsView("main");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const tournamentsPageView = selectedTournamentId ? "detail" : tournamentsView;
+  const selectedTournament = selectedTournamentId ? pastTournaments.find((item) => item.id === selectedTournamentId) : null;
+  // The one place a page needs more than its own NAV label: drilling into a
+  // tournament adds "Tournaments" and its name as extra breadcrumb segments.
+  // Every other page is still just [NAV label], same as always.
+  const breadcrumbTrail = page === "sports" && (tournamentsPageView === "gallery" || selectedTournament)
+    ? [NAV.find((item) => item.id === "sports")?.label, "Tournaments", selectedTournament?.name].filter(Boolean)
+    : [NAV.find((item) => item.id === page)?.label];
   const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : `Demo ${titleCase(role)}` })); setProfileOpen(false); };
 
   const content = {
@@ -261,7 +392,22 @@ export default function App() {
     venues: <ResourcePage type="venue" items={venues} loading={loading} onBook={openBooking} refresh={loadCore} />,
     equipment: <ResourcePage type="equipment" items={equipment} loading={loading} onBook={openBooking} refresh={loadCore} />,
     bookings: <BookingsPage bookings={bookings} loading={loading} onCancel={cancelBooking} navigate={navigate} />,
-    sports: <SportsPage matches={matches} tournaments={tournaments} committee={committee} />,
+    sports: (
+      <SportsPage
+        fixtures={fixtures}
+        canEditScores={["scorekeeper", "admin"].includes(user.role)}
+        onUpdateFixture={updateFixture} onAddFixture={addFixture} onDeleteFixture={deleteFixture}
+        schedule={schedule} onUpdateScheduleMatch={updateScheduleMatch}
+        onAddScheduleMatch={addScheduleMatch} onDeleteScheduleMatch={deleteScheduleMatch}
+        points={points} onUpdatePointsSection={updatePointsSection}
+        upcomingTournaments={upcomingTournaments} pastTournaments={pastTournaments}
+        canEditTournaments={user.role === "admin"}
+        onAddUpcomingTournament={addUpcomingTournament} onUpdateUpcomingTournament={updateUpcomingTournament} onDeleteUpcomingTournament={deleteUpcomingTournament}
+        onAddPastTournament={addPastTournament} onUpdatePastTournament={updatePastTournament} onDeletePastTournament={deletePastTournament}
+        tournamentsView={tournamentsPageView} selectedTournament={selectedTournament}
+        onOpenTournamentGallery={openTournamentGallery} onOpenTournament={openTournament} onBackTournaments={backTournaments}
+      />
+    ),
     approvals: <ApprovalsPage approvals={approvals} loading={loading} onDecision={decide} />,
     admin: <AdminPage user={user} onCreated={created} audit={audit} />,
   }[page];
@@ -277,7 +423,15 @@ export default function App() {
       <div className="app-main">
         <header className="topbar">
           <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={21} /></button>
-          <div className="breadcrumb"><Home size={15} /><span>/</span><strong>{NAV.find((item) => item.id === page)?.label}</strong></div>
+          <div className="breadcrumb">
+            <Home size={15} />
+            {breadcrumbTrail.flatMap((segment, index, trail) => [
+              <span key={`sep-${index}`}>/</span>,
+              index === trail.length - 1
+                ? <strong key={`seg-${index}`}>{segment}</strong>
+                : <span key={`seg-${index}`}>{segment}</span>,
+            ])}
+          </div>
           <div className="profile-wrap">
             <button className="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label={`Switch demo identity. Current role: ${user.role}`}><span className="avatar">{user.name.split(" ").map((word) => word[0]).slice(0, 2).join("")}</span><span><strong>{user.name}</strong><small>{titleCase(user.role)} mode</small></span><ChevronDown size={16} /></button>
             {profileOpen && <div className="profile-menu"><p>Demo identity</p>{["requester", "approver", "scorekeeper", "admin"].map((role) => <button key={role} className={user.role === role ? "active" : ""} onClick={() => changeRole(role)}><span>{titleCase(role)}</span>{user.role === role && <Check size={15} />}</button>)}</div>}
