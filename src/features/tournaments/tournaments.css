@@ -58,10 +58,22 @@
 .tm-detail-description { margin: 0; color: #3e4b46; font-size: 14px; line-height: 1.65; }
 .tm-detail-subhead { margin: 22px 0 12px; color: var(--green-700); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .tm-detail-form { margin-top: 4px; }
-.tm-moments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
-.tm-moment { height: 90px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; overflow: hidden; color: rgba(255,255,255,.95); border-radius: 13px; font-size: 11px; font-weight: 700; }
-.tm-moment svg { position: relative; z-index: 1; }
-.tm-moment span { position: relative; z-index: 1; }
+
+.tm-photos-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 0 12px; }
+.tm-photos-head .tm-detail-subhead { margin: 0; }
+.tm-photo-add { cursor: pointer; }
+/* Fixed 2-up, not auto-fill — the point is large photos, not "as many as
+   fit". Every cell is forced to the same aspect-ratio (object-fit: cover
+   crops to it) on purpose — letting each photo keep its own natural ratio
+   (an earlier version of this) left uneven gaps wherever a row's two photos
+   weren't the same shape, since the grid row's height comes from the taller
+   one. Uniform cells, evenly spaced, is worth the crop. */
+.tm-photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.tm-photo-item { position: relative; }
+.tm-photo { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #f7f9f6; border-radius: 13px; transition: transform .2s ease; }
+.tm-photo:hover { transform: scale(1.02); }
+.tm-photo-remove { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; color: #fff; background: rgba(18,30,24,.55); border-color: rgba(255,255,255,.3); backdrop-filter: blur(2px); }
+.tm-photo-remove:hover { background: rgba(166,67,67,.85); }
 
 @media (max-width: 1100px) {
   .tm-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -73,6 +85,7 @@
 
 @media (max-width: 600px) {
   .tm-gallery-grid { grid-template-columns: 1fr; }
+  .tm-photo-grid { grid-template-columns: 1fr; }
   .tm-upcoming-item { flex-wrap: wrap; }
   .tm-detail-meta { flex-wrap: wrap; gap: 8px; }
 }
