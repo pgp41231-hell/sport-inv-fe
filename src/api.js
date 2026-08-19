@@ -124,7 +124,7 @@ export const api = {
   publicVenues: (query) => apiRequest("/public/venues", { query }),
   publicEquipment: () => apiRequest("/public/equipment"),
   equipmentCatalog: () => apiRequest("/public/equipment-catalog"),
-  publicContent: (type) => apiRequest(`/public/${type}`),
+  publicContent: (type, query) => apiRequest(`/public/${type}`, { query }),
   me: (user) => apiRequest("/me", { user }),
   bookings: (user) => apiRequest("/bookings", { user }),
   createBooking: (user, body) => apiRequest("/bookings", { method: "POST", user, body }),
@@ -182,4 +182,21 @@ export const api = {
 
   // Alternative slots (US-05B). Falls back to recommendSlotsLocally in src/lib/slots.js.
   recommendations: (query) => apiRequest("/public/recommendations", { query }),
+
+  // --- Sports content (Fixtures & events page) --------------------------------
+  //
+  // One generic family of endpoints backs `committee`, `gallery`, `tournaments`,
+  // `matches`, and `standings` — mirrors the backend's own /{contentType} routes
+  // rather than five near-identical sets of named methods. `publicContent` above
+  // is the read side everyone can call; these four are the authenticated
+  // scorekeeper/admin write side (role checks happen on the backend, same as
+  // everywhere else — the frontend just gates which buttons render).
+  //
+  // May 404 on a backend deployed before these routes existed; callers check
+  // isMissingEndpoint and fall back to the local demo data rather than failing,
+  // same pattern as the EPIC-03/04 endpoints above.
+  content: (user, type, query) => apiRequest(`/${type}`, { user, query }),
+  createContent: (user, type, body) => apiRequest(`/${type}`, { method: "POST", user, body }),
+  updateContent: (user, type, id, body) => apiRequest(`/${type}/${id}`, { method: "PATCH", user, body }),
+  deleteContent: (user, type, id) => apiRequest(`/${type}/${id}`, { method: "DELETE", user }),
 };

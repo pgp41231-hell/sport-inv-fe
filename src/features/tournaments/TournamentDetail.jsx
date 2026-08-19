@@ -22,7 +22,7 @@ import { formatDay } from "../../lib/format.js";
 // Removing one is a direct click, no confirm step — unlike deleting the
 // whole tournament, losing one photo from a set is low-stakes and trivial
 // to re-add, so the extra friction isn't worth it here.
-export default function TournamentDetail({ tournament, canEdit, onUpdate, onDelete, onBack }) {
+export default function TournamentDetail({ tournament, canEdit, onUpdate, onDelete, onBack, photosAreReal, onAddPhoto, onRemovePhoto }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -58,6 +58,16 @@ export default function TournamentDetail({ tournament, canEdit, onUpdate, onDele
     const files = Array.from(event.target.files || []);
     event.target.value = ""; // lets the same file be picked again later
     if (!files.length) return;
+    if (photosAreReal) {
+      // Raw File objects, not read here — the parent decides how a photo
+      // actually gets stored (compressed upload to Supabase Storage, or a
+      // data: URL fallback when Storage isn't configured — see App.jsx).
+      // One real gallery row per file; onAddPhoto's caller reloads the real
+      // photo list afterward, same reload-after-mutation pattern as
+      // everywhere else real data is edited in this app.
+      for (const file of files) await onAddPhoto(tournament.id, file);
+      return;
+    }
     const readAsDataUrl = (file) => new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -65,10 +75,12 @@ export default function TournamentDetail({ tournament, canEdit, onUpdate, onDele
       reader.readAsDataURL(file);
     });
     const dataUrls = await Promise.all(files.map(readAsDataUrl));
-    onUpdate(tournament.id, { photos: [...(tournament.photos || []), ...dataUrls] });
+    const added = dataUrls.map((url, index) => ({ id: `local-${Date.now()}-${index}`, url }));
+    onUpdate(tournament.id, { photos: [...(tournament.photos || []), ...added] });
   };
-  const removePhoto = (index) => {
-    onUpdate(tournament.id, { photos: tournament.photos.filter((_, photoIndex) => photoIndex !== index) });
+  const removePhoto = (photoId) => {
+    if (photosAreReal) { onRemovePhoto(photoId); return; }
+    onUpdate(tournament.id, { photos: tournament.photos.filter((photo) => photo.id !== photoId) });
   };
 
   return (
@@ -134,15 +146,15 @@ export default function TournamentDetail({ tournament, canEdit, onUpdate, onDele
           {tournament.photos?.length > 0 ? (
             <div className="tm-photo-grid">
               {tournament.photos.map((photo, index) => (
-                <div className="tm-photo-item" key={photo}>
+                <div className="tm-photo-item" key={photo.id}>
                   <img
                     className="tm-photo"
-                    src={photo}
+                    src={photo.url}
                     alt={`${tournament.name} — photo ${index + 1}`}
                     loading="lazy"
                   />
                   {canEdit && (
-                    <button type="button" className="icon-button tm-photo-remove" onClick={() => removePhoto(index)} aria-label={`Remove photo ${index + 1}`}>
+                    <button type="button" className="icon-button tm-photo-remove" onClick={() => removePhoto(photo.id)} aria-label={`Remove photo ${index + 1}`}>
                       <X size={14} aria-hidden="true" />
                     </button>
                   )}
