@@ -307,7 +307,7 @@ function AdminPage({ user, onCreated, audit, equipment }) {
         <div className="section-heading"><div><p className="eyebrow">Access policy</p><h2>Email eligibility</h2></div><ShieldCheck size={21} /></div>
         <p className="muted-copy">This case-insensitive regular expression is checked during signup and every new login. The fixed administrator account is always allowed.</p>
         <form className="rule-form" onSubmit={saveEmailRule}><label className="field">Allowed email regular expression<input required value={emailPattern} onChange={(event) => setEmailPattern(event.target.value)} placeholder="^pgp\\d{5}@iiml\\.ac\\.in$" /></label><button className="button button-primary" disabled={accessSaving}>{accessSaving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}Save rule</button></form>
-        <p className="rule-example">Default example: <code>^pgp\d{'{5}'}@iiml\.ac\.in$</code> allows five-digit PGP accounts. Administrator: <strong>sportscomm@iiml.ac.in</strong>.</p>
+        <p className="rule-example">Default example: <code>^pgp\d{'{5}'}@iiml\.ac\.in$</code> allows five-digit PGP accounts. Administrator: <strong>sports@iiml.ac.in</strong>.</p>
       </section>
       <section className="panel users-panel">
         <div className="section-heading"><div><p className="eyebrow">Committee rotation</p><h2>Assign a role by email</h2></div><Users size={21} /></div>

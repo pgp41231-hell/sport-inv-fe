@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AdminOverview, AdminResourcePage, CombinedApprovalsPage } from "./AdminOperations.jsx";
 
-const admin = { id: "admin-1", role: "admin", email: "sportscomm@iiml.ac.in" };
+const admin = { id: "admin-1", role: "admin", email: "sports@iiml.ac.in" };
 
 describe("Administrator operations views", () => {
   it("replaces the student hero with operational counts", () => {

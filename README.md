@@ -16,7 +16,7 @@ Set `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` in `.
 
 ## Authentication
 
-The application uses Supabase Auth for email/password signup, login, session restoration, and password changes. New users must match the administrator-managed email rule. Only `sportscomm@iiml.ac.in` can open Administration, where committee roles, the email regex, sports, teams, captains, POCs, and the inventory kiosk are managed.
+The application uses Supabase Auth for email/password signup, login, session restoration, and password changes. New users must match the administrator-managed email rule. Only `sports@iiml.ac.in` can open Administration, where committee roles, the email regex, sports, teams, captains, POCs, and the inventory kiosk are managed.
 
 ### Required email-verification setup
 

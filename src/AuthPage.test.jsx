@@ -12,7 +12,7 @@ vi.mock("./api.js", () => ({ api: apiMock }));
 describe("AuthPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    apiMock.authConfig.mockResolvedValue({ data: { emailPattern: "^pgp", bootstrapAdminEmail: "sportscomm@iiml.ac.in" } });
+    apiMock.authConfig.mockResolvedValue({ data: { emailPattern: "^pgp", bootstrapAdminEmail: "sports@iiml.ac.in" } });
   });
 
   it("signs in a registered user", async () => {
