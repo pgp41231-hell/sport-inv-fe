@@ -14,7 +14,7 @@ const suggestion = (hour, peak, reasons) => ({
 });
 
 const THREE = [
-  suggestion(5, false, ["Same day", "Off-peak — quieter and usually approved faster"]),
+  suggestion(5, false, ["Same day", "Off-peak — usually less busy"]),
   suggestion(6, false, ["Same day"]),
   suggestion(12, true, ["Same day", "Same peak window"]),
 ];
@@ -26,7 +26,7 @@ describe("AlternativeSlots", () => {
     expect(screen.getAllByRole("button", { name: /2030|Apr|:/i }).length).toBeGreaterThanOrEqual(3);
     expect(screen.getAllByText(/off-peak/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^Peak$/)).toBeInTheDocument();
-    expect(screen.getByText(/quieter and usually approved faster/i)).toBeInTheDocument();
+    expect(screen.getByText(/usually less busy/i)).toBeInTheDocument();
     expect(screen.getByText("That time is taken")).toBeInTheDocument();
   });
 

@@ -188,7 +188,7 @@ export function recommendSlotsLocally({
 
       if (requestedPeak && !peak) {
         score += 40;
-        reasons.push("Off-peak — quieter and usually approved faster");
+        reasons.push("Off-peak — usually less busy");
       } else if (peak === requestedPeak) {
         score += 10;
         reasons.push(peak ? "Same peak window" : "Off-peak, like your original request");

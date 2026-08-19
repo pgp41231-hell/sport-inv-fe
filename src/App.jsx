@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowRight, BadgeCheck, CalendarDays, Check, ChevronDown, CircleAlert,
-  Clock3, Dumbbell, Home, LayoutDashboard, LoaderCircle, MapPin, Menu, Plus,
-  Search, ShieldCheck, Sparkles, Trophy, Warehouse, X,
+  Clock3, Dumbbell, Home, LayoutDashboard, LoaderCircle, LogOut, MapPin, Menu, Plus,
+  Save, Search, Settings, ShieldCheck, Sparkles, Trophy, Users, Warehouse, X,
 } from "lucide-react";
 import { API_BASE_URL, api } from "./api.js";
+import { supabase, supabaseConfigured } from "./supabase.js";
+import AuthPage from "./AuthPage.jsx";
 import { titleCase } from "./lib/format.js";
 // EPIC-03 / EPIC-04 — booking calendar, slot holds, and alternative slots.
 import BookingWizard from "./features/booking/BookingWizard.jsx";
@@ -24,23 +26,20 @@ import "./features/tournaments/tournaments.css";
 import CommitteePanel from "./features/committee/CommitteePanel.jsx";
 import { COMMITTEE_DEMO } from "./features/committee/demoData.js";
 import "./features/committee/committee.css";
+import EquipmentModule from "./features/equipment/EquipmentModule.jsx";
+import { AdminOverview, AdminResourcePage, CombinedApprovalsPage } from "./features/admin/AdminOperations.jsx";
+import { publicPhotoUrl } from "./media.js";
+import InventoryOverview from "./features/equipment/InventoryOverview.jsx";
 
 const NAV = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "venues", label: "Venues", icon: MapPin },
   { id: "equipment", label: "Equipment", icon: Dumbbell },
-  { id: "bookings", label: "My bookings", icon: CalendarDays },
+  { id: "bookings", label: "My bookings", icon: CalendarDays, hiddenFor: ["admin"] },
   { id: "sports", label: "Fixtures & events", icon: Trophy },
   { id: "approvals", label: "Approvals", icon: BadgeCheck, roles: ["approver", "admin"] },
   { id: "admin", label: "Administration", icon: ShieldCheck, roles: ["admin"] },
 ];
-
-const DEFAULT_USER = {
-  id: "demo-admin",
-  name: "Sports Committee",
-  email: "sports.committee@iiml.ac.in",
-  role: "admin",
-};
 
 const ROLE_LABELS = {
   requester: "Student",
@@ -81,27 +80,30 @@ function EmptyState({ icon: Icon = Sparkles, title, copy, action }) {
 }
 
 function StatusPill({ value }) {
-  return <span className={`status status-${value || "neutral"}`}>{titleCase(value || "unknown")}</span>;
+  const label = value === "approved" ? "Booked" : titleCase(value || "unknown");
+  return <span className={`status status-${value || "neutral"}`}>{label}</span>;
 }
 
 function ResourceCard({ item, type, onBook }) {
+  const photo = publicPhotoUrl(item.photoPath);
+  const label = type === "venue" ? (item.sportName || item.category) : item.category;
   const details = type === "venue"
-    ? `${item.capacity} people`
+    ? null
     : `${item.quantity} available · ${titleCase(item.condition)}`;
-  const tags = type === "venue" ? item.amenities : Object.keys(item.metadata || {});
+  const tags = type === "venue" ? [] : Object.keys(item.metadata || {});
   return (
     <article className="resource-card">
       <div className={`resource-visual visual-${type}`}>
-        {type === "venue" ? <Warehouse size={28} /> : <Dumbbell size={28} />}
-        <span>{titleCase(item.category)}</span>
+        {photo ? <img className="resource-photo" src={photo} alt="" /> : type === "venue" ? <Warehouse size={28} /> : <Dumbbell size={28} />}
+        <span>{titleCase(label)}</span>
       </div>
       <div className="resource-content">
         <div>
-          <p className="eyebrow">{titleCase(item.category)}</p>
+          <p className="eyebrow">{titleCase(label)}</p>
           <h3>{item.name}</h3>
         </div>
         <p className="resource-location"><MapPin size={15} />{item.location || "Sports complex"}</p>
-        <p className="resource-detail">{details}</p>
+        {details && <p className="resource-detail">{details}</p>}
         <div className="tag-row">
           {(tags || []).slice(0, 3).map((tag) => <span className="tag" key={tag}>{titleCase(tag)}</span>)}
         </div>
@@ -139,7 +141,7 @@ function Overview({ venues, equipment, bookings, matches, navigate, onBook }) {
       <div className="overview-grid">
         <section className="panel featured-panel">
           <div className="section-heading"><div><p className="eyebrow">Popular spaces</p><h2>Ready when you are</h2></div><button className="text-button" onClick={() => navigate("venues")}>View all<ArrowRight size={15} /></button></div>
-          {venues.length ? <div className="compact-list">{venues.slice(0, 3).map((venue) => <button key={venue.id} className="compact-resource" onClick={() => onBook(venue, "venue")}><span className="compact-icon"><Warehouse size={20} /></span><span><strong>{venue.name}</strong><small>{venue.location || venue.category} · {venue.capacity} people</small></span><Plus size={18} /></button>)}</div> : <EmptyState icon={MapPin} title="No venues yet" copy="An admin can add the first campus venue." />}
+          {venues.length ? <div className="compact-list">{venues.slice(0, 3).map((venue) => <button key={venue.id} className="compact-resource" onClick={() => onBook(venue, "venue")}><span className="compact-icon"><Warehouse size={20} /></span><span><strong>{venue.name}</strong><small>{venue.sportName || venue.category} · {venue.location || "Campus location"}</small></span><Plus size={18} /></button>)}</div> : <EmptyState icon={MapPin} title="No venues yet" copy="An admin can add the first campus venue." />}
         </section>
         <section className="panel schedule-panel">
           <div className="section-heading"><div><p className="eyebrow">Up next</p><h2>Your schedule</h2></div></div>
@@ -153,7 +155,7 @@ function Overview({ venues, equipment, bookings, matches, navigate, onBook }) {
 
 function ResourcePage({ type, items, loading, onBook, refresh }) {
   const [search, setSearch] = useState("");
-  const filtered = items.filter((item) => `${item.name} ${item.category} ${item.location || ""}`.toLowerCase().includes(search.toLowerCase()));
+  const filtered = items.filter((item) => `${item.name} ${item.sportName || item.category || ""} ${item.location || ""}`.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="page-stack">
       <header className="page-header"><div><p className="eyebrow">Discover & reserve</p><h1>{type === "venue" ? "Campus venues" : "Sports equipment"}</h1><p>{type === "venue" ? "Courts, grounds, and spaces for every kind of game." : "Everything you need, ready at the equipment desk."}</p></div><button className="button button-ghost" onClick={refresh}>Refresh</button></header>
@@ -168,7 +170,7 @@ function ResourcePage({ type, items, loading, onBook, refresh }) {
 function BookingsPage({ bookings, loading, onCancel, navigate }) {
   return (
     <div className="page-stack">
-      <header className="page-header"><div><p className="eyebrow">Your activity</p><h1>My bookings</h1><p>Track requests, approvals, upcoming slots, and cancellations.</p></div><button className="button button-primary" onClick={() => navigate("venues")}><Plus size={17} />New booking</button></header>
+      <header className="page-header"><div><p className="eyebrow">Your activity</p><h1>My bookings</h1><p>Track confirmed reservations, upcoming slots, and cancellations.</p></div><button className="button button-primary" onClick={() => navigate("venues")}><Plus size={17} />New booking</button></header>
       <MyBookingsPanel bookings={bookings} loading={loading} onCancel={onCancel} navigate={navigate} />
     </div>
   );
@@ -221,37 +223,124 @@ function ApprovalsPage({ approvals, loading, onDecision }) {
   );
 }
 
-function AdminPage({ user, onCreated, audit }) {
+function AdminPage({ user, onCreated, audit, equipment }) {
   const [kind, setKind] = useState("venue");
-  const [form, setForm] = useState({ name: "", category: "", location: "", capacity: 20, quantity: 5, condition: "good", amenities: "" });
+  const [form, setForm] = useState({ name: "", category: "", location: "", capacity: 20, quantity: 5, condition: "good", amenities: "", pool: "CASUAL", tracking: "BULK", assetTags: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [assignments, setAssignments] = useState([]);
+  const [roleForm, setRoleForm] = useState({ email: "", role: "approver" });
+  const [accessUsers, setAccessUsers] = useState([]);
+  const [sports, setSports] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [sportName, setSportName] = useState("");
+  const [captainForm, setCaptainForm] = useState({ sportId: "", email: "" });
+  const [custodyAudit, setCustodyAudit] = useState([]);
+  const [auditFilters, setAuditFilters] = useState({ equipmentId: "", personId: "", from: "", to: "" });
+  const [kioskPassword, setKioskPassword] = useState("");
+  const [emailPattern, setEmailPattern] = useState("");
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [accessMessage, setAccessMessage] = useState("");
+  const [sportFeedback, setSportFeedback] = useState(null);
+  const [captainFeedback, setCaptainFeedback] = useState(null);
+  const [pocFeedback, setPocFeedback] = useState({});
+  const loadAccess = useCallback(async () => {
+    const [assignmentResult, settingsResult, usersResult, sportsResult, teamsResult] = await Promise.allSettled([api.roleAssignments(user), api.authSettings(user), api.adminUsers(user), api.equipmentSports(user), api.equipmentTeams(user)]);
+    if (assignmentResult.status === "fulfilled") setAssignments(assignmentResult.value.data || []);
+    else setAccessMessage(assignmentResult.reason.message);
+    if (settingsResult.status === "fulfilled") setEmailPattern(settingsResult.value.data?.emailPattern || "");
+    if (usersResult.status === "fulfilled") setAccessUsers(usersResult.value.data || []);
+    if (sportsResult.status === "fulfilled") setSports(sportsResult.value.data || []);
+    if (teamsResult.status === "fulfilled") setTeams(teamsResult.value.data || []);
+  }, [user]);
+  useEffect(() => { loadAccess(); }, [loadAccess]);
   const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
     try {
       if (kind === "venue") await api.createVenue(user, { name: form.name, category: form.category, location: form.location || null, capacity: Number(form.capacity), amenities: form.amenities.split(",").map((item) => item.trim()).filter(Boolean), rules: {}, active: true });
-      else await api.createEquipment(user, { name: form.name, category: form.category, location: form.location || null, quantity: Number(form.quantity), condition: form.condition, metadata: {}, active: true });
-      setForm({ name: "", category: "", location: "", capacity: 20, quantity: 5, condition: "good", amenities: "" });
+      else {
+        const tags = form.assetTags.split(",").map((item) => item.trim()).filter(Boolean);
+        if (form.tracking === "ASSET" && tags.length !== Number(form.quantity)) throw new Error("Provide one unique asset tag per unit");
+        const createdEquipment = await api.createEquipment(user, { name: form.name, category: form.category, location: form.location || null, quantity: Number(form.quantity), condition: form.condition, metadata: {}, pool: form.pool, tracking: form.tracking, active: true });
+        if (tags.length) await api.createEquipmentAssets(user, createdEquipment.data.id, tags.map((assetTag) => ({ assetTag })));
+      }
+      setForm({ name: "", category: "", location: "", capacity: 20, quantity: 5, condition: "good", amenities: "", pool: "CASUAL", tracking: "BULK", assetTags: "" });
       onCreated(kind);
     } catch (requestError) { setError(requestError.message); } finally { setSaving(false); }
   };
+  const addRoleAssignment = async (event) => {
+    event.preventDefault(); setAccessSaving(true); setAccessMessage("");
+    try {
+      const response = await api.addRoleAssignment(user, roleForm);
+      setAssignments((current) => [...current.filter((item) => item.email !== response.data.email), response.data].sort((a, b) => a.email.localeCompare(b.email)));
+      setRoleForm({ email: "", role: "approver" });
+      setAccessMessage("Role assignment saved successfully");
+    } catch (requestError) { setAccessMessage(requestError.message); } finally { setAccessSaving(false); }
+  };
+  const removeRoleAssignment = async (email) => {
+    setAccessMessage("");
+    try {
+      await api.removeRoleAssignment(user, email);
+      setAssignments((current) => current.filter((item) => item.email !== email));
+      setAccessMessage("Role removed; the account is now a Student");
+    } catch (requestError) { setAccessMessage(requestError.message); }
+  };
+  const saveEmailRule = async (event) => {
+    event.preventDefault(); setAccessSaving(true); setAccessMessage("");
+    try {
+      const response = await api.updateAuthSettings(user, emailPattern);
+      setEmailPattern(response.data.emailPattern);
+      setAccessMessage("Email eligibility rule saved. It applies to signup and future logins.");
+    } catch (requestError) { setAccessMessage(requestError.message); } finally { setAccessSaving(false); }
+  };
+  const addSport = async (event) => { event.preventDefault(); setSportFeedback(null); try { await api.createSport(user, { name: sportName, active: true }); setSportName(""); setSportFeedback({ type: "success", text: "Sport added successfully" }); await loadAccess(); } catch (requestError) { setSportFeedback({ type: "error", text: requestError.message }); } };
+  const setPocs = async (sportId, field, value) => { const sport = sports.find((item) => item.id === sportId); setPocFeedback((current) => ({ ...current, [sportId]: null })); try { await api.setSportPocs(user, sportId, { primaryPocId: field === "primary" ? value || null : sport.primaryPocId || null, secondaryPocId: field === "secondary" ? value || null : sport.secondaryPocId || null }); setPocFeedback((current) => ({ ...current, [sportId]: { type: "success", text: "POC saved" } })); await loadAccess(); } catch (requestError) { setPocFeedback((current) => ({ ...current, [sportId]: { type: "error", text: requestError.message } })); } };
+  const assignCaptain = async (event) => { event.preventDefault(); setAccessSaving(true); setCaptainFeedback(null); try { await api.assignSportCaptain(user, captainForm.sportId, captainForm.email.trim().toLowerCase()); setCaptainForm({ sportId: "", email: "" }); setCaptainFeedback({ type: "success", text: "Captain assigned successfully" }); await loadAccess(); } catch (requestError) { setCaptainFeedback({ type: "error", text: requestError.message }); } finally { setAccessSaving(false); } };
+  const sportCommUsers = accessUsers.filter((account) => account.role === "approver");
+  const loadCustodyAudit = async () => { try { setCustodyAudit((await api.equipmentAudit(user, auditFilters)).data || []); } catch (requestError) { setAccessMessage(requestError.message); } };
+  const createKiosk = async (event) => { event.preventDefault(); try { await api.createInventoryKiosk(user, kioskPassword); setKioskPassword(""); setAccessMessage("Inventory kiosk account created successfully"); } catch (requestError) { setAccessMessage(requestError.message); } };
   return (
     <div className="page-stack">
-      <header className="page-header"><div><p className="eyebrow">Operations desk</p><h1>Administration</h1><p>Add bookable inventory and monitor recent system activity.</p></div></header>
+      <header className="page-header"><div><p className="eyebrow">Operations desk</p><h1>Administration</h1><p>Manage portal access, committee roles, and bookable inventory.</p></div></header>
+      <section className="panel access-panel">
+        <div className="section-heading"><div><p className="eyebrow">Access policy</p><h2>Email eligibility</h2></div><ShieldCheck size={21} /></div>
+        <p className="muted-copy">This case-insensitive regular expression is checked during signup and every new login. The fixed administrator account is always allowed.</p>
+        <form className="rule-form" onSubmit={saveEmailRule}><label className="field">Allowed email regular expression<input required value={emailPattern} onChange={(event) => setEmailPattern(event.target.value)} placeholder="^pgp\\d{5}@iiml\\.ac\\.in$" /></label><button className="button button-primary" disabled={accessSaving}>{accessSaving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}Save rule</button></form>
+        <p className="rule-example">Default example: <code>^pgp\d{'{5}'}@iiml\.ac\.in$</code> allows five-digit PGP accounts. Administrator: <strong>sportscomm@iiml.ac.in</strong>.</p>
+      </section>
+      <section className="panel users-panel">
+        <div className="section-heading"><div><p className="eyebrow">Committee rotation</p><h2>Assign a role by email</h2></div><Users size={21} /></div>
+        <p className="muted-copy">Everyone is a Student by default. Add only committee members and scorekeepers here; an assignment also applies if the person signs up later.</p>
+        <form className="role-assignment-form" onSubmit={addRoleAssignment}><label className="field">Institute email<input required type="email" value={roleForm.email} onChange={(event) => setRoleForm((current) => ({ ...current, email: event.target.value.toLowerCase() }))} placeholder="pgp12345@iiml.ac.in" /></label><label className="field">Role<select value={roleForm.role} onChange={(event) => setRoleForm((current) => ({ ...current, role: event.target.value }))}><option value="approver">SportComm member</option><option value="scorekeeper">Scorekeeper</option></select></label><button className="button button-primary" disabled={accessSaving}>{accessSaving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}Add</button></form>
+        {accessMessage && <p className={accessMessage.includes("success") || accessMessage.includes("saved") ? "form-success" : "form-error"}>{accessMessage}</p>}
+        {assignments.length ? <div className="assignment-list">{assignments.map((assignment) => { const pocSports = sports.filter((sport) => [sport.primaryPocEmail, sport.secondaryPocEmail].includes(assignment.email)).map((sport) => sport.name); return <div className="assignment-row" key={assignment.email}><span><strong>{assignment.email}</strong><small>{assignment.role === "approver" ? "SportComm member" : "Scorekeeper"}{pocSports.length ? ` · POC: ${pocSports.join(", ")}` : ""}</small></span><button className="button button-danger-soft" onClick={() => removeRoleAssignment(assignment.email)}><X size={15} />Remove</button></div>; })}</div> : <p className="empty-assignments">No special roles assigned. All registered users are Students.</p>}
+        <form className="kiosk-setup" onSubmit={createKiosk}><div><strong>Inventory kiosk</strong><small>Create `inventory@iiml.ac.in` once. Existing accounts are never reset.</small></div><label className="field">Initial kiosk password<input required minLength="8" type="password" value={kioskPassword} onChange={(event) => setKioskPassword(event.target.value)} /></label><button className="button button-secondary">Set up kiosk</button></form>
+      </section>
+      <section className="panel sports-pocs-panel">
+        <div className="section-heading"><div><p className="eyebrow">Equipment configuration</p><h2>Sports &amp; POCs</h2></div><ShieldCheck size={21} /></div>
+        <form className="inline-admin-form" onSubmit={addSport}><label className="field">New sport<input required value={sportName} onChange={(event) => { setSportName(event.target.value); setSportFeedback(null); }} placeholder="Badminton" /></label><button className="button button-primary"><Plus size={16} />Add sport</button></form>
+        {sportFeedback && <p className={sportFeedback.type === "success" ? "form-success inline-form-feedback" : "form-error inline-form-feedback"}>{sportFeedback.text}</p>}
+        <div className="sport-admin-list">{sports.map((sport) => <div className="sport-admin-row" key={sport.id}><span><strong>{sport.name}</strong>{!sport.primaryPocId && !sport.secondaryPocId && <small className="missing-poc">No POC assigned</small>}{pocFeedback[sport.id] && <small className={`inline-action-feedback ${pocFeedback[sport.id].type}`}>{pocFeedback[sport.id].text}</small>}</span><label className="field">Primary POC<select value={sport.primaryPocId || ""} onChange={(event) => setPocs(sport.id, "primary", event.target.value)}><option value="">No primary POC assigned</option>{sportCommUsers.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.email}</option>)}</select></label><label className="field">Secondary POC<select value={sport.secondaryPocId || ""} onChange={(event) => setPocs(sport.id, "secondary", event.target.value)}><option value="">None</option>{sportCommUsers.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.email}</option>)}</select></label><span className="sport-actions"><button className="button button-secondary" onClick={() => { const name = window.prompt("Rename sport", sport.name); if (name && name !== sport.name) api.updateSport(user, sport.id, { name }).then(loadAccess); }}>Rename</button><button className="button button-secondary" onClick={() => api.updateSport(user, sport.id, { active: !sport.active }).then(loadAccess)}>{sport.active ? "Mark inactive" : "Reactivate"}</button></span></div>)}</div>
+        <div className="section-heading team-heading"><div><p className="eyebrow">Captains</p><h2>Assign captain by email</h2><p className="muted-copy">Choose a sport and enter the institute email of a registered Student. Assigning again replaces that sport's current captain.</p></div></div>
+        <form className="captain-assignment-form" onSubmit={assignCaptain}><label className="field">Sport<select required value={captainForm.sportId} onChange={(event) => { setCaptainForm((current) => ({ ...current, sportId: event.target.value })); setCaptainFeedback(null); }}><option value="">Select sport</option>{sports.filter((sport) => sport.active).map((sport) => <option key={sport.id} value={sport.id}>{sport.name}</option>)}</select></label><label className="field">Student email<input required type="email" value={captainForm.email} onChange={(event) => { setCaptainForm((current) => ({ ...current, email: event.target.value.toLowerCase() })); setCaptainFeedback(null); }} placeholder="pgp12345@iiml.ac.in" /></label><button className="button button-primary" disabled={accessSaving}><Plus size={16} />Assign captain</button></form>
+        {captainFeedback && <p className={captainFeedback.type === "success" ? "form-success inline-form-feedback" : "form-error inline-form-feedback"}>{captainFeedback.text}</p>}
+        {teams.some((team) => team.active) ? <div className="captain-assignment-list">{teams.filter((team) => team.active).map((team) => <div className="assignment-row" key={team.id}><span><strong>{team.sportName}</strong><small>{team.captainName || team.captainEmail} · {team.captainEmail}</small></span><span className="status status-neutral">Captain</span></div>)}</div> : <p className="empty-assignments">No sport captains assigned yet.</p>}
+      </section>
       <div className="admin-grid">
-        <section className="panel admin-form-panel"><div className="segmented"><button className={kind === "venue" ? "active" : ""} onClick={() => setKind("venue")}><MapPin size={16} />Venue</button><button className={kind === "equipment" ? "active" : ""} onClick={() => setKind("equipment")}><Dumbbell size={16} />Equipment</button></div><h2>Add {kind}</h2><p className="muted-copy">New inventory is immediately available to the booking interface.</p><form className="form-grid" onSubmit={submit}><label className="field field-full">Name<input required name="name" value={form.name} onChange={update} placeholder={kind === "venue" ? "Badminton Court 1" : "Badminton Racquet"} /></label><label className="field">Category<input required name="category" value={form.category} onChange={update} placeholder={kind === "venue" ? "court" : "racquet"} /></label><label className="field">Location<input name="location" value={form.location} onChange={update} placeholder="Sports Complex" /></label>{kind === "venue" ? <><label className="field">Capacity<input min="1" required type="number" name="capacity" value={form.capacity} onChange={update} /></label><label className="field">Amenities<input name="amenities" value={form.amenities} onChange={update} placeholder="lighting, indoor" /></label></> : <><label className="field">Quantity<input min="1" required type="number" name="quantity" value={form.quantity} onChange={update} /></label><label className="field">Condition<select name="condition" value={form.condition} onChange={update}><option>excellent</option><option>good</option><option>fair</option><option>maintenance</option><option>retired</option></select></label></>}{error && <p className="form-error field-full"><CircleAlert size={16} />{error}</p>}<button className="button button-primary field-full" disabled={saving}>{saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}Add to inventory</button></form></section>
-        <section className="panel audit-panel"><div className="section-heading"><div><p className="eyebrow">Audit history</p><h2>Recent activity</h2></div><Activity size={20} /></div>{audit.length ? <div className="audit-list">{audit.map((entry) => <div className="audit-item" key={entry.id}><span className="audit-dot" /><div><strong>{titleCase(entry.action)}</strong><p>{titleCase(entry.entityType)} · {entry.actorId || "System"}</p><small>{formatDate(entry.createdAt)}</small></div></div>)}</div> : <EmptyState icon={Activity} title="No activity yet" copy="Inventory and booking actions will be recorded here." />}</section>
+        <section className="panel admin-form-panel" hidden><div className="segmented"><button className={kind === "venue" ? "active" : ""} onClick={() => setKind("venue")}><MapPin size={16} />Venue</button><button className={kind === "equipment" ? "active" : ""} onClick={() => setKind("equipment")}><Dumbbell size={16} />Equipment</button></div><h2>Add {kind}</h2><p className="muted-copy">New inventory is immediately available to the booking interface.</p><form className="form-grid" onSubmit={submit}><label className="field field-full">Name<input required name="name" value={form.name} onChange={update} placeholder={kind === "venue" ? "Badminton Court 1" : "Badminton Racquet"} /></label><label className="field">Category<input required name="category" value={form.category} onChange={update} placeholder={kind === "venue" ? "court" : "racquet"} /></label><label className="field">Location<input name="location" value={form.location} onChange={update} placeholder="Sports Complex" /></label>{kind === "venue" ? <><label className="field">Capacity<input min="1" required type="number" name="capacity" value={form.capacity} onChange={update} /></label><label className="field">Amenities<input name="amenities" value={form.amenities} onChange={update} placeholder="lighting, indoor" /></label></> : <><label className="field">Quantity<input min="1" required type="number" name="quantity" value={form.quantity} onChange={update} /></label><label className="field">Condition<select name="condition" value={form.condition} onChange={update}><option>excellent</option><option>good</option><option>fair</option><option>maintenance</option><option>retired</option></select></label><label className="field">Pool<select name="pool" value={form.pool} onChange={update}><option value="CASUAL">Casual</option><option value="TEAM">Team</option></select></label><label className="field">Tracking<select name="tracking" value={form.tracking} onChange={update}><option value="BULK">Bulk quantity</option><option value="ASSET">Asset tag / serial</option></select></label>{form.tracking === "ASSET" && <label className="field field-full">Asset tags (one per unit, comma separated)<input required name="assetTags" value={form.assetTags} onChange={update} placeholder="RACKET-001, RACKET-002" /></label>}</>}{error && <p className="form-error field-full"><CircleAlert size={16} />{error}</p>}<button className="button button-primary field-full" disabled={saving}>{saving ? <LoaderCircle className="spin" size={17} /> : <Plus size={17} />}Add to inventory</button></form></section>
+        <section className="panel audit-panel"><div className="section-heading"><div><p className="eyebrow">Audit history</p><h2>Recent activity</h2></div><Activity size={20} /></div>{audit.length ? <div className="audit-list">{audit.map((entry) => <div className="audit-item" key={entry.id}><span className="audit-dot" /><div><strong>{titleCase(entry.action)}</strong><p>{titleCase(entry.entityType)} · {entry.actorId || "System"}</p><small>{formatDate(entry.createdAt)}</small></div></div>)}</div> : <EmptyState icon={Activity} title="No activity yet" copy="Inventory and booking actions will be recorded here." />}<div className="custody-audit"><div className="section-heading"><div><p className="eyebrow">Equipment custody</p><h2>State changes</h2></div></div><div className="audit-filter-grid"><label className="field">Item<select value={auditFilters.equipmentId} onChange={(event) => setAuditFilters((current) => ({ ...current, equipmentId: event.target.value }))}><option value="">All items</option>{equipment.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="field">Person<select value={auditFilters.personId} onChange={(event) => setAuditFilters((current) => ({ ...current, personId: event.target.value }))}><option value="">All people</option>{accessUsers.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label><label className="field">From<input type="date" value={auditFilters.from} onChange={(event) => setAuditFilters((current) => ({ ...current, from: event.target.value }))} /></label><button className="button button-secondary" onClick={loadCustodyAudit}>Filter</button></div>{custodyAudit.map((entry) => <div className="audit-item" key={entry.id}><span className="audit-dot" /><div><strong>{entry.equipmentName} × {entry.quantity}</strong><p>{titleCase(entry.fromState)} → {titleCase(entry.toState)} · {entry.personName || entry.teamName || "Inventory"}</p><small>{formatDate(entry.createdAt)}</small></div></div>)}</div></section>
       </div>
     </div>
   );
 }
 
-export default function App() {
+function PortalApp({ initialUser, onLogout }) {
   const [page, setPage] = useState("overview");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState(DEFAULT_USER);
+  const [user, setUser] = useState(initialUser);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [bookingResource, setBookingResource] = useState(null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -260,6 +349,8 @@ export default function App() {
   const [bookings, setBookings] = useState([]);
   const [matches, setMatches] = useState([]);
   const [approvals, setApprovals] = useState([]);
+  const [equipmentRequests, setEquipmentRequests] = useState([]);
+  const [sports, setSports] = useState([]);
   const [audit, setAudit] = useState([]);
   // DEMO — local-only state for the example fixtures; see FIXTURES_DEMO.
   const [fixtures, setFixtures] = useState(FIXTURES_DEMO);
@@ -284,7 +375,10 @@ export default function App() {
   const loadCore = useCallback(async () => {
     setLoading(true);
     const results = await Promise.allSettled([
-      api.publicVenues(), api.publicEquipment(), api.bookings(user), api.publicContent("matches"),
+      user.role === "admin" ? api.venues(user) : api.publicVenues(),
+      user.role === "admin" ? api.equipmentInventory(user) : api.publicEquipment(),
+      user.role === "admin" ? Promise.resolve({ data: [] }) : api.bookings(user),
+      api.publicContent("matches"),
     ]);
     const setters = [setVenues, setEquipment, setBookings, setMatches];
     results.forEach((result, index) => { if (result.status === "fulfilled") setters[index](result.value.data || []); });
@@ -296,6 +390,9 @@ export default function App() {
   const loadRoleData = useCallback(async () => {
     if (["approver", "admin"].includes(user.role)) {
       try { setApprovals((await api.pendingApprovals(user)).data || []); } catch (error) { if (error.status !== 403) notify(error.message, "error"); }
+      const equipmentResult = await Promise.allSettled([api.equipmentRequests(user), api.equipmentSports(user)]);
+      setEquipmentRequests(equipmentResult[0].status === "fulfilled" ? equipmentResult[0].value.data || [] : []);
+      setSports(equipmentResult[1].status === "fulfilled" ? equipmentResult[1].value.data || [] : []);
     } else setApprovals([]);
     if (user.role === "admin") {
       try { setAudit((await api.audit(user)).data || []); } catch (error) { if (error.status !== 403) notify(error.message, "error"); }
@@ -303,16 +400,17 @@ export default function App() {
   }, [user, notify]);
 
   useEffect(() => { loadCore(); loadRoleData(); }, [loadCore, loadRoleData]);
-  const allowedNav = useMemo(() => NAV.filter((item) => !item.roles || item.roles.includes(user.role)), [user.role]);
+  const allowedNav = useMemo(() => NAV.filter((item) => (!item.roles || item.roles.includes(user.role)) && !item.hiddenFor?.includes(user.role)), [user.role]);
   useEffect(() => { if (!allowedNav.some((item) => item.id === page)) setPage("overview"); }, [allowedNav, page]);
 
   const navigate = (next) => { setPage(next); setMobileOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const openBooking = (item, type) => setBookingResource({ item, type });
-  const bookingSaved = async () => { setBookingResource(null); notify("Reservation submitted successfully"); await loadCore(); setPage("bookings"); };
+  const bookingSaved = async () => { setBookingResource(null); notify("Venue booked successfully"); await loadCore(); setPage("bookings"); };
   // Rethrows so MyBookingsPanel can show the failure on the row it belongs to,
   // rather than only as a toast that has drifted away from the action.
   const cancelBooking = async (id) => { try { await api.cancelBooking(user, id); notify("Booking cancelled"); await loadCore(); } catch (error) { notify(error.message, "error"); throw error; } };
   const decide = async (id, decision, comment) => { try { await api.decideApproval(user, id, { decision, comment: comment || undefined }); notify(`Booking ${decision === "approve" ? "approved" : "rejected"}`); await Promise.all([loadCore(), loadRoleData()]); } catch (error) { notify(error.message, "error"); } };
+  const decideEquipment = async (id, decision, note) => { try { const request = equipmentRequests.find((item) => item.id === id); const hasActiveCasualIssue = decision === "approve" && request?.requestType === "CASUAL" && equipmentRequests.some((item) => item.id !== id && item.requesterId === request.requesterId && item.requestType === "CASUAL" && ["APPROVED", "ISSUED", "RETURN_PENDING"].includes(item.status)); await api.decideEquipmentRequest(user, id, { decision, note: note || undefined }); notify(hasActiveCasualIssue ? "Request approved. Warning: this student already has an active casual request or issue; kiosk handover waits until issued equipment is returned." : `Equipment request ${decision === "approve" ? "approved" : "rejected"}`); await loadRoleData(); } catch (error) { notify(error.message, "error"); } };
   const created = async (kind) => { notify(`${titleCase(kind)} added to inventory`); await Promise.all([loadCore(), loadRoleData()]); };
   // DEMO — local-only add/edit/delete for the example fixtures; no backend to persist to yet.
   const updateFixture = (id, patch) => {
@@ -392,12 +490,12 @@ export default function App() {
   const breadcrumbTrail = page === "sports" && (tournamentsPageView === "gallery" || selectedTournament)
     ? [NAV.find((item) => item.id === "sports")?.label, "Tournaments", selectedTournament?.name].filter(Boolean)
     : [NAV.find((item) => item.id === page)?.label];
-  const changeRole = (role) => { setUser((current) => ({ ...current, id: `demo-${role}`, role, name: role === "admin" ? "Sports Committee" : roleLabel(role) })); setProfileOpen(false); };
+  const logout = async () => { try { await api.logout(user); } catch {} onLogout(); };
 
   const content = {
-    overview: <Overview venues={venues} equipment={equipment} bookings={bookings} matches={matches} navigate={navigate} onBook={openBooking} />,
-    venues: <ResourcePage type="venue" items={venues} loading={loading} onBook={openBooking} refresh={loadCore} />,
-    equipment: <ResourcePage type="equipment" items={equipment} loading={loading} onBook={openBooking} refresh={loadCore} />,
+    overview: user.role === "admin" ? <AdminOverview venueApprovals={approvals} equipmentRequests={equipmentRequests} equipment={equipment} sports={sports} navigate={navigate} /> : <Overview venues={venues} equipment={equipment} bookings={bookings} matches={matches} navigate={navigate} onBook={openBooking} />,
+    venues: user.role === "admin" ? <AdminResourcePage type="venue" items={venues} loading={loading} user={user} refresh={loadCore} notify={notify} /> : <ResourcePage type="venue" items={venues} loading={loading} onBook={openBooking} refresh={loadCore} />,
+    equipment: user.role === "admin" ? <><AdminResourcePage type="equipment" items={equipment} equipmentRequests={equipmentRequests} loading={loading} user={user} refresh={async () => { await Promise.all([loadCore(), loadRoleData()]); }} notify={notify} /><InventoryOverview user={user} notify={notify} /></> : <><EquipmentModule user={user} equipment={equipment} notify={notify} onLogout={onLogout} />{user.role === "approver" && <InventoryOverview user={user} notify={notify} />}</>,
     bookings: <BookingsPage bookings={bookings} loading={loading} onCancel={cancelBooking} navigate={navigate} />,
     sports: (
       <SportsPage
@@ -415,15 +513,15 @@ export default function App() {
         onOpenTournamentGallery={openTournamentGallery} onOpenTournament={openTournament} onBackTournaments={backTournaments}
       />
     ),
-    approvals: <ApprovalsPage approvals={approvals} loading={loading} onDecision={decide} />,
-    admin: <AdminPage user={user} onCreated={created} audit={audit} />,
+    approvals: <CombinedApprovalsPage user={user} venueApprovals={approvals} equipmentRequests={equipmentRequests} sports={sports} loading={loading} onVenueDecision={decide} onEquipmentDecision={decideEquipment} />,
+    admin: <AdminPage user={user} onCreated={created} audit={audit} equipment={equipment} />,
   }[page];
 
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileOpen ? "mobile-open" : ""}`}>
         <div className="brand"><span className="brand-mark"><Trophy size={22} /></span><span><strong>Courtyard</strong><small>IIM Lucknow Sports</small></span></div>
-        <nav>{allowedNav.map(({ id, label, icon: Icon }) => <button key={id} className={page === id ? "active" : ""} onClick={() => navigate(id)}><Icon size={19} /><span>{label}</span>{id === "approvals" && approvals.length > 0 && <b>{approvals.length}</b>}</button>)}</nav>
+        <nav>{allowedNav.map(({ id, label, icon: Icon }) => <button key={id} className={page === id ? "active" : ""} onClick={() => navigate(id)}><Icon size={19} /><span>{label}</span>{id === "approvals" && approvals.length + equipmentRequests.filter((request) => request.status === "PENDING").length > 0 && <b>{approvals.length + equipmentRequests.filter((request) => request.status === "PENDING").length}</b>}</button>)}</nav>
         <div className="sidebar-foot"><span className="connection-dot" /><span><strong>API connected</strong><small>{new URL(API_BASE_URL).host}</small></span></div>
       </aside>
       {mobileOpen && <button className="sidebar-scrim" onClick={() => setMobileOpen(false)} aria-label="Close navigation" />}
@@ -440,14 +538,73 @@ export default function App() {
             ])}
           </div>
           <div className="profile-wrap">
-            <button className="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label={`Switch demo identity. Current role: ${roleLabel(user.role)}`}><span className="avatar">{user.name.split(" ").map((word) => word[0]).slice(0, 2).join("")}</span><span><strong>{user.name}</strong><small>{roleLabel(user.role)} mode</small></span><ChevronDown size={16} /></button>
-            {profileOpen && <div className="profile-menu"><p>Demo identity</p>{["requester", "approver", "scorekeeper", "admin"].map((role) => <button key={role} className={user.role === role ? "active" : ""} onClick={() => changeRole(role)}><span>{roleLabel(role)}</span>{user.role === role && <Check size={15} />}</button>)}</div>}
+            <button className="profile-button" onClick={() => setProfileOpen((open) => !open)} aria-label={`Account menu. Current role: ${roleLabel(user.role)}`}><span className="avatar">{user.name.split(" ").map((word) => word[0]).slice(0, 2).join("")}</span><span><strong>{user.name}</strong><small>{roleLabel(user.role)}</small></span><ChevronDown size={16} /></button>
+            {profileOpen && <div className="profile-menu"><p>{user.email}</p><button onClick={() => { setPasswordOpen(true); setProfileOpen(false); }}><span>Change password</span><Settings size={15} /></button><button onClick={logout}><span>Sign out</span><LogOut size={15} /></button></div>}
           </div>
         </header>
         <main className="content">{content}</main>
       </div>
       {bookingResource && <BookingWizard resource={bookingResource} user={user} myBookingIds={bookings.map((booking) => booking.id)} onClose={() => setBookingResource(null)} onSaved={bookingSaved} />}
       <Toast toast={toast} onClose={() => setToast(null)} />
+      {passwordOpen && <PasswordChange user={user} onDone={(updated) => { setUser((current) => ({ ...current, ...updated })); setPasswordOpen(false); notify("Password changed"); }} onCancel={() => setPasswordOpen(false)} />}
     </div>
   );
+}
+
+function PasswordChange({ user, mandatory = false, onDone, onCancel }) {
+  const [passwords, setPasswords] = useState({ password: "", confirm: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (event) => {
+    event.preventDefault(); setError("");
+    if (passwords.password.length < 8) return setError("Password must contain at least 8 characters");
+    if (passwords.password !== passwords.confirm) return setError("Passwords do not match");
+    setSaving(true);
+    try { const response = await api.changePassword(user, passwords.password); onDone(response.data); }
+    catch (requestError) { setError(requestError.message); } finally { setSaving(false); }
+  };
+  const form = <form className="auth-card" onSubmit={submit}><div className="auth-icon"><Settings /></div><p className="eyebrow">Account security</p><h2>{mandatory ? "Choose a new password" : "Change password"}</h2><p className="muted-copy">{mandatory ? "The seeded administrator password must be replaced before the portal can be used." : "Update your Supabase account password."}</p><label className="field">New password<input required minLength="8" type="password" value={passwords.password} onChange={(event) => setPasswords((current) => ({ ...current, password: event.target.value }))} /></label><label className="field">Confirm password<input required minLength="8" type="password" value={passwords.confirm} onChange={(event) => setPasswords((current) => ({ ...current, confirm: event.target.value }))} /></label>{error && <p className="form-error"><CircleAlert size={16} />{error}</p>}<button className="button button-primary button-wide" disabled={saving}>{saving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}Save password</button>{!mandatory && <button type="button" className="auth-switch" onClick={onCancel}>Cancel</button>}</form>;
+  return mandatory ? <main className="auth-shell"><section className="auth-story"><div className="auth-brand"><span className="brand-mark"><Trophy /></span><strong>Courtyard</strong></div><div><p className="hero-kicker"><ShieldCheck size={15} />First login</p><h1>Secure the<br /><span>admin account.</span></h1></div></section><section className="auth-card-wrap">{form}</section></main> : <div className="modal-backdrop"><section className="modal-panel">{form}</section></div>;
+}
+
+const SESSION_KEY = "courtyard-session";
+
+export default function App() {
+  const [sessionUser, setSessionUser] = useState(undefined);
+  useEffect(() => {
+    if (supabaseConfigured) {
+      const hydrate = async (session) => {
+        if (!session) { setSessionUser(null); return; }
+        try {
+          const profile = (await api.me({ token: session.access_token })).data;
+          setSessionUser({ ...profile, token: session.access_token, expiresAt: new Date(session.expires_at * 1000).toISOString() });
+        } catch { setSessionUser(null); }
+      };
+      supabase.auth.getSession().then(({ data }) => hydrate(data.session));
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setTimeout(() => hydrate(session), 0); });
+      return () => listener.subscription.unsubscribe();
+    }
+    const stored = localStorage.getItem(SESSION_KEY);
+    if (!stored) { setSessionUser(null); return; }
+    try {
+      const candidate = JSON.parse(stored);
+      api.me(candidate).then((response) => {
+        const current = { ...response.data, token: candidate.token, expiresAt: candidate.expiresAt };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(current));
+        setSessionUser(current);
+      }).catch(() => { localStorage.removeItem(SESSION_KEY); setSessionUser(null); });
+    } catch { localStorage.removeItem(SESSION_KEY); setSessionUser(null); }
+    return undefined;
+  }, []);
+  const authenticated = ({ user, token, expiresAt }) => {
+    const current = { ...user, token, expiresAt };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(current));
+    setSessionUser(current);
+  };
+  const logout = () => { localStorage.removeItem(SESSION_KEY); setSessionUser(null); };
+  if (sessionUser === undefined) return <div className="auth-loading"><LoaderCircle className="spin" /></div>;
+  if (!sessionUser) return <AuthPage onAuthenticated={authenticated} />;
+  if (sessionUser.mustChangePassword) return <PasswordChange mandatory user={sessionUser} onDone={(updated) => setSessionUser((current) => ({ ...current, ...updated }))} />;
+  if (sessionUser.role === "inventory_kiosk") return <EquipmentModule user={sessionUser} equipment={[]} notify={() => {}} onLogout={logout} />;
+  return <PortalApp initialUser={sessionUser} onLogout={logout} />;
 }

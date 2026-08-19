@@ -171,7 +171,7 @@ export default function AvailabilityCalendar({ resource, user, myBookingIds = []
           {openCount > 0 && (
             <p className="bk-note bk-note-quiet">
               <CalendarDays size={15} aria-hidden="true" />
-              {openCount} slot{openCount === 1 ? "" : "s"} open. A dot marks peak hours, which take longer to approve.
+              {openCount} slot{openCount === 1 ? "" : "s"} open. A dot marks peak hours, which are usually busier.
             </p>
           )}
         </>

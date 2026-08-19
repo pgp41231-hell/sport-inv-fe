@@ -6,6 +6,7 @@ import { formatSlotDay, formatSlotTime, splitBookings, timeUntil } from "../../l
 
 const CANCELLABLE = ["pending", "approved"];
 const titleCase = (value = "") => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+const bookingStatusLabel = (value) => value === "approved" ? "Booked" : titleCase(value || "unknown");
 
 /**
  * US-04D — upcoming and past bookings, filterable, with cancellation.
@@ -71,7 +72,7 @@ export default function MyBookingsPanel({ bookings = [], loading, onCancel, navi
           <span className="bk-sr-only">Filter by status</span>
           <select value={status} onChange={(event) => setStatus(event.target.value)}>
             {statuses.map((value) => (
-              <option key={value} value={value}>{value === "all" ? "All statuses" : titleCase(value)}</option>
+              <option key={value} value={value}>{value === "all" ? "All statuses" : bookingStatusLabel(value)}</option>
             ))}
           </select>
         </label>
@@ -120,7 +121,7 @@ export default function MyBookingsPanel({ bookings = [], loading, onCancel, navi
               </div>
 
               <div className="bk-booking-side">
-                <span className={`status status-${booking.status || "neutral"}`}>{titleCase(booking.status || "unknown")}</span>
+                <span className={`status status-${booking.status || "neutral"}`}>{bookingStatusLabel(booking.status)}</span>
                 {tab === "upcoming" && !["cancelled", "rejected"].includes(booking.status) && (
                   <small className="bk-countdown">{timeUntil(booking.startAt)}</small>
                 )}
@@ -155,6 +156,6 @@ export default function MyBookingsPanel({ bookings = [], loading, onCancel, navi
 }
 
 function emptyTitle(tab, status) {
-  if (status !== "all") return `No ${titleCase(status).toLowerCase()} bookings ${tab === "upcoming" ? "coming up" : "in the past"}`;
+  if (status !== "all") return `No ${bookingStatusLabel(status).toLowerCase()} bookings ${tab === "upcoming" ? "coming up" : "in the past"}`;
   return tab === "upcoming" ? "Nothing booked yet" : "No past bookings";
 }

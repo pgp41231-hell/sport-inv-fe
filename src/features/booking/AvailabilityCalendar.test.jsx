@@ -83,6 +83,8 @@ describe("AvailabilityCalendar", () => {
     // 18:00 IST is peak; the time must still come first or a screen-reader user
     // cannot tell which slot they are on.
     await waitFor(() => expect(slotButton("06:00 pm")).toHaveAccessibleName(/^06:00 pm — .*peak/i));
+    expect(screen.getByText(/peak hours, which are usually busier/i)).toBeInTheDocument();
+    expect(screen.queryByText(/approve/i)).not.toBeInTheDocument();
   });
 
   test("US-04A: choosing a slot hands back its exact interval", async () => {

@@ -12,11 +12,26 @@ pnpm dev
 
 Open `http://localhost:5173`.
 
-The default API is `https://spot-inv-be.vercel.app/api/v1`. Change `VITE_API_BASE_URL` in `.env` when connecting to a local or preview backend.
+Set `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` in `.env` when connecting to a local or preview backend.
 
-## Current authentication mode
+## Authentication
 
-The backend currently uses demo authentication. The profile menu switches among requester, approver, scorekeeper, and admin test identities by sending the backend's temporary `x-user-*` headers. Replace this with an OAuth/OIDC token provider when institutional login is introduced.
+The application uses Supabase Auth for email/password signup, login, session restoration, and password changes. New users must match the administrator-managed email rule. Only `sportscomm@iiml.ac.in` can open Administration, where committee roles, the email regex, sports, teams, captains, POCs, and the inventory kiosk are managed.
+
+### Required email-verification setup
+
+The signup code requests a Supabase confirmation email and sends the verification link back to `VITE_SITE_URL`. Email delivery is controlled by the Supabase project and cannot be enabled by pushing application code alone. Before deploying:
+
+1. In Supabase, open **Authentication > Providers > Email**. Enable the Email provider and turn **Confirm email** on.
+2. Open **Authentication > URL Configuration**. Set **Site URL** to the deployed frontend URL and add the deployed URL and `http://localhost:5173` to **Redirect URLs**.
+3. In the frontend hosting environment, set `VITE_SITE_URL` to the deployed frontend URL, along with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+4. For production delivery, configure **Project Settings > Authentication > SMTP Settings**. Supabase's built-in email service is rate-limited and intended for limited testing.
+
+The confirmation is delivered to the signup address. If an `@iiml.ac.in` mailbox is hosted by Google Workspace, the message appears in that Google/Gmail inbox. The app signs the user out after signup and asks them to confirm the address before signing in.
+
+The equipment module requires the Supabase database migration; it intentionally has no in-memory fallback. The `inventory@iiml.ac.in` account receives a scanner-only interface. QR input works with a keyboard-style scanner or by pasting the opaque token.
+
+Venue and equipment photos are compressed to WebP in the browser and uploaded to the public `sports-media` Supabase Storage bucket. The administrator form accepts JPG, PNG, and WebP files up to 5MB. Equipment configuration reads sports, categories, and campus locations live from the database, and the Inventory overview separates in-store, student-held, team-held, damaged, and missing stock.
 
 ## Build
 

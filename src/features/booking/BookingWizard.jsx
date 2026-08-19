@@ -79,7 +79,8 @@ export default function BookingWizard({ resource, user, myBookingIds = [], onClo
         // tell the user the slot is not reserved for them.
         setHoldUnavailable(true);
       } else if (requestError.status === 409) {
-        setNotice("Someone took that slot moments ago. Pick another.");
+        const ownBookingConflict = requestError.details?.details?.conflict?.conflictType === "requester_booking";
+        setNotice(ownBookingConflict ? "You already have another venue booked during this time. Pick a non-overlapping slot." : "Someone took that slot moments ago. Pick another.");
         setStep("calendar");
         setSlot(null);
       } else {
@@ -230,7 +231,7 @@ export default function BookingWizard({ resource, user, myBookingIds = [], onClo
               </label>
               <label className="field field-full">
                 Purpose
-                <textarea name="purpose" value={form.purpose} onChange={update} rows="3" placeholder="Optional context for the approver" />
+                <textarea name="purpose" value={form.purpose} onChange={update} rows="3" placeholder="Optional booking note" />
               </label>
               {resource.type === "equipment" && (
                 <label className="field">

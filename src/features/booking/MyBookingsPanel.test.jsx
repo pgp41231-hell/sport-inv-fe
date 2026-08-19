@@ -26,6 +26,8 @@ describe("MyBookingsPanel", () => {
     expect(within(screen.getByRole("tab", { name: /past/i })).getByText("1")).toBeInTheDocument();
 
     expect(screen.getByText("Morning football")).toBeInTheDocument();
+    expect(within(screen.getByText("Morning football").closest("li")).getByText("Booked")).toBeInTheDocument();
+    expect(screen.queryByText("Approved")).not.toBeInTheDocument();
     expect(screen.queryByText("Last week's match")).not.toBeInTheDocument();
   });
 
