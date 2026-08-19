@@ -12,7 +12,7 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = "GET", body, user, query, signal } = options;
+  const { method = "GET", body, user, query, signal, _sessionRefreshAttempted = false } = options;
   const url = new URL(`${API_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(query || {})) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
@@ -37,7 +37,33 @@ export async function apiRequest(path, options = {}) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new ApiError(payload?.error?.message || `Request failed (${response.status})`, response.status, payload?.error);
+    const message = payload?.error?.message || `Request failed (${response.status})`;
+    const rejectedSupabaseSession = response.status === 401
+      && supabaseConfigured
+      && Boolean(user?.token)
+      && /invalid or expired supabase session/i.test(message);
+
+    if (rejectedSupabaseSession && !_sessionRefreshAttempted) {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (!error && data.session?.access_token) {
+        return apiRequest(path, {
+          ...options,
+          user: { ...user, token: data.session.access_token },
+          _sessionRefreshAttempted: true,
+        });
+      }
+    }
+
+    if (rejectedSupabaseSession) {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      throw new ApiError(
+        "Your Supabase session is no longer valid. Please sign in again.",
+        response.status,
+        payload?.error,
+      );
+    }
+
+    throw new ApiError(message, response.status, payload?.error);
   }
   return payload;
 }
