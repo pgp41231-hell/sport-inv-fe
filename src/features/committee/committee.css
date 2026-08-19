@@ -11,10 +11,18 @@
 .cm-card-head { min-width: 0; }
 .cm-card-head strong { display: block; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .cm-card-head small { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.cm-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .cm-tag { width: max-content; }
 .cm-contact { display: flex; align-items: center; gap: 7px; overflow: hidden; color: #4d5b55; text-decoration: none; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .cm-contact:hover { color: var(--green-700); text-decoration: underline; }
 .cm-contact svg { flex: 0 0 auto; color: var(--green-700); }
+.cm-support { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.cm-support a { color: var(--green-700); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.cm-support a:hover { color: var(--green-900); }
+/* .text-button is inline-flex, so margin: auto can't center it — the flex +
+   max-content combination makes it block-level but only as wide as its
+   content, which is what auto margins need to have room to center it in. */
+.cm-toggle { display: flex; width: max-content; margin: 16px auto 0; }
 
 @media (max-width: 1100px) {
   .cm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

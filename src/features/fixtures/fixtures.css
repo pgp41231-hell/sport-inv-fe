@@ -77,13 +77,17 @@
 .fx-schedule-btn-danger { color: #a64343; background: #fff1ef; border-color: #f2d5d1; }
 
 .fx-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.fx-points-panel { width: min(760px, 100%); }
+.fx-points-panel { width: min(960px, 96vw); }
 /* overflow-x here, not on .fx-points-panel, is what keeps a table wider than
    the modal from pushing the modal itself wider than its fixed width — the
-   table scrolls internally instead. */
+   table scrolls internally instead. Font size and padding also scale down
+   with the viewport (clamp, not a fixed px), so the table itself shrinks to
+   fit rather than relying on the panel alone growing to whatever width a
+   given window happens to be — that's what actually removes the scrollbar
+   on narrower browser windows, not just wide ones. */
 .fx-points-wrap { overflow-x: auto; margin-top: 4px; }
-.fx-points-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.fx-points-table th, .fx-points-table td { padding: 10px 12px; white-space: nowrap; text-align: center; }
+.fx-points-table { width: 100%; border-collapse: collapse; font-size: clamp(10px, .95vw + 5px, 12px); }
+.fx-points-table th, .fx-points-table td { padding: clamp(6px, 1vw, 10px) clamp(3px, .6vw, 8px); white-space: nowrap; text-align: center; }
 .fx-points-table thead th { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
 .fx-points-rank-head, .fx-points-rank { width: 30px; text-align: center; }
 .fx-points-section-head, .fx-points-section { text-align: left; }
@@ -104,5 +108,4 @@
   .fx-schedule-row > .status { grid-column: 2; margin-top: 6px; justify-self: start; }
   .fx-schedule-row-editable > .status { grid-column: 2; margin-top: 6px; justify-self: start; }
   .fx-schedule-row-editable > .fx-schedule-actions { grid-column: 2; flex-direction: row; margin-top: 6px; }
-  .fx-points-table th, .fx-points-table td { padding: 8px 9px; }
 }
