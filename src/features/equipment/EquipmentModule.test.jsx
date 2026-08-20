@@ -28,6 +28,28 @@ describe("student equipment catalogue", () => {
     await waitFor(() => expect(api.equipmentRequests).toHaveBeenCalled());
   });
 
+  it("separates requesting from activity and expands the QR as a full-width row", async () => {
+    vi.spyOn(api, "equipmentSports").mockResolvedValue({ data: [] });
+    vi.spyOn(api, "equipmentTeams").mockResolvedValue({ data: [] });
+    vi.spyOn(api, "equipmentRequests").mockResolvedValue({ data: [{
+      id: "request-1", requesterId: student.id, requesterName: "Test Student", requestType: "CASUAL", status: "APPROVED",
+      dueAt: "2026-08-20T12:00:00.000Z", items: [{ equipmentId: "balls", name: "Table tennis balls", quantity: 2 }],
+    }] });
+    vi.spyOn(api, "equipmentQr").mockResolvedValue({ data: { token: "signed-qr-token", purpose: "ISSUE", expiresAt: "2026-08-20T18:00:00.000Z" } });
+    render(<EquipmentModule user={student} notify={vi.fn()} equipment={[]} />);
+
+    expect(screen.getByRole("button", { name: /Request equipment/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByText("Table tennis balls × 2")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /My requests/i }));
+    expect(await screen.findByText("Table tennis balls × 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
+    expect(await screen.findByText("Ready for collection")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide QR" }).closest("article")).toHaveClass("qr-expanded");
+    fireEvent.click(screen.getByRole("button", { name: /Drag up or click to hide QR/i }));
+    expect(screen.getByRole("button", { name: "Show QR" })).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("lets the inventory kiosk start its camera and sign out", async () => {
     const stop = vi.fn();
     vi.spyOn(BrowserQRCodeReader.prototype, "decodeFromConstraints").mockResolvedValue({ stop });
