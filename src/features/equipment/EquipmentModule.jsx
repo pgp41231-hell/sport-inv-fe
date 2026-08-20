@@ -9,22 +9,33 @@ const label = (value) => String(value || "").toLowerCase().replaceAll("_", " ").
 
 function RequestCard({ request, user, sports, onChanged, notify }) {
   const [qr, setQr] = useState(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const qrDragStart = useRef(null);
   const sport = sports.find((item) => item.id === request.sportId);
   const canApprove = user.role === "admin" || (user.role === "approver" && (request.requestType === "CASUAL" || [sport?.primaryPocId, sport?.secondaryPocId].includes(user.id)));
   const decide = async (decision) => {
     try { await api.decideEquipmentRequest(user, request.id, { decision }); notify(`Request ${decision === "approve" ? "approved" : "rejected"}`); onChanged(); }
-    catch (error) { notify(error.message, "error"); }
+    catch (error) {
+      const needsConfirmation = decision === "approve" && error.status === 409 && error.details?.details?.requiresConfirmation;
+      if (needsConfirmation && window.confirm(`${error.message}\n\nApprove this additional request and allow kiosk handover anyway?`)) {
+        try { await api.decideEquipmentRequest(user, request.id, { decision, confirmConcurrentIssue: true }); notify("Request approved after confirmation"); onChanged(); }
+        catch (confirmedError) { notify(confirmedError.message, "error"); }
+        return;
+      }
+      notify(error.message, "error");
+    }
   };
   const generate = async () => {
-    try { setQr((await api.equipmentQr(user, request.id)).data); } catch (error) { notify(error.message, "error"); }
+    if (qr) { setQrOpen((open) => !open); return; }
+    try { setQr((await api.equipmentQr(user, request.id)).data); setQrOpen(true); } catch (error) { notify(error.message, "error"); }
   };
   const returnItems = async () => {
     try {
       const created = await api.createEquipmentRequest(user, { requestType: "RETURN", parentRequestId: request.id, items: request.items.map((item) => ({ equipmentId: item.equipmentId, quantity: item.quantity })) });
-      setQr((await api.equipmentQr(user, created.data.id)).data); onChanged();
+      setQr((await api.equipmentQr(user, created.data.id)).data); setQrOpen(true); onChanged();
     } catch (error) { notify(error.message, "error"); }
   };
-  return <article className="panel equipment-request-card"><div className="request-card-head"><div><strong>{label(request.requestType)} request</strong><small>{request.requesterName || request.requesterEmail}{request.teamName ? ` · ${request.teamName}` : ""}</small></div><span className={`status status-${String(request.status).toLowerCase()}`}>{label(request.status)}</span></div><div className="request-items">{request.items?.map((item) => <span key={item.equipmentId}>{item.name} × {item.quantity}</span>)}</div>{request.dueAt && <p className={new Date(request.dueAt) < new Date() && request.status === "ISSUED" ? "overdue" : "muted-copy"}><Clock3 size={14} />Due {new Date(request.dueAt).toLocaleString("en-IN")}</p>}<div className="request-actions">{request.status === "PENDING" && canApprove && <><button className="button button-danger-soft" onClick={() => decide("reject")}><X size={15} />Reject</button><button className="button button-primary" onClick={() => decide("approve")}><Check size={15} />Approve</button></>}{request.status === "APPROVED" && request.requesterId === user.id && <button className="button button-primary" onClick={generate}><QrCode size={16} />Show QR</button>}{request.status === "ISSUED" && request.requesterId === user.id && request.requestType !== "RETURN" && <button className="button button-secondary" onClick={returnItems}><RotateCcw size={16} />Return items</button>}</div>{qr && <div className="qr-card"><QRCodeSVG value={qr.token} size={190} level="M" /><strong>{qr.purpose} equipment</strong><small>Expires {new Date(qr.expiresAt).toLocaleString("en-IN")}</small><code>{qr.token}</code></div>}</article>;
+  return <article className="panel equipment-request-card"><div className="request-card-head"><div><strong>{label(request.requestType)} request</strong><small>{request.requesterName || request.requesterEmail}{request.teamName ? ` · ${request.teamName}` : ""}</small></div><span className={`status status-${String(request.status).toLowerCase()}`}>{label(request.status)}</span></div><div className="request-items">{request.items?.map((item) => <span key={item.equipmentId}>{item.name} × {item.quantity}</span>)}</div>{request.dueAt && <p className={new Date(request.dueAt) < new Date() && request.status === "ISSUED" ? "overdue" : "muted-copy"}><Clock3 size={14} />Due {new Date(request.dueAt).toLocaleString("en-IN")}</p>}<div className="request-actions">{request.status === "PENDING" && canApprove && <><button className="button button-danger-soft" onClick={() => decide("reject")}><X size={15} />Reject</button><button className="button button-primary" onClick={() => decide("approve")}><Check size={15} />Approve</button></>}{request.status === "APPROVED" && request.requesterId === user.id && <button className="button button-primary" onClick={generate} aria-expanded={qrOpen}><QrCode size={16} />{qrOpen ? "Hide QR" : "Show QR"}</button>}{request.status === "ISSUED" && request.requesterId === user.id && request.requestType !== "RETURN" && <button className="button button-secondary" onClick={returnItems}><RotateCcw size={16} />Return items</button>}</div>{qr && <div className={`qr-reveal ${qrOpen ? "open" : ""}`} aria-hidden={!qrOpen}><div className="qr-card"><button className="qr-drag-handle" type="button" aria-label="Drag up or click to hide QR" onClick={() => setQrOpen(false)} onPointerDown={(event) => { qrDragStart.current = event.clientY; event.currentTarget.setPointerCapture?.(event.pointerId); }} onPointerUp={(event) => { if (qrDragStart.current !== null && event.clientY - qrDragStart.current < -30) setQrOpen(false); qrDragStart.current = null; }}><span /></button><QRCodeSVG value={qr.token} size={190} level="M" /><strong>{qr.purpose} equipment</strong><small>Expires {new Date(qr.expiresAt).toLocaleString("en-IN")}</small><code>{qr.token}</code></div></div>}</article>;
 }
 
 function Kiosk({ user, notify, onLogout }) {

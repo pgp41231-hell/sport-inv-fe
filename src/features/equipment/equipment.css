@@ -16,8 +16,16 @@
 .request-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .overdue,.overdue-chip { display: flex; align-items: center; gap: 6px; color: #a53f3f; font-size: 12px; font-weight: 700; }
 .overdue-chip { padding: 7px 10px; background: #fde7e4; border-radius: 99px; }
-.qr-card { padding: 18px; display: grid; place-items: center; gap: 8px; background: #f7f9f6; border-radius: 14px; text-align: center; }
+.qr-reveal { display:grid; grid-template-rows:0fr; opacity:0; transform:translateY(-10px); transition:grid-template-rows .28s ease,opacity .22s ease,transform .28s ease; }
+.qr-reveal.open { grid-template-rows:1fr; opacity:1; transform:translateY(0); }
+.qr-reveal > .qr-card { min-height:0; overflow:hidden; }
+.qr-card { padding: 0 18px; display: grid; place-items: center; gap: 8px; background: #f7f9f6; border-radius: 14px; text-align: center; transition:padding .28s ease; }
+.qr-reveal.open .qr-card { padding:18px; }
+.qr-drag-handle { width:70px; height:24px; padding:8px; border:0; background:transparent; cursor:grab; touch-action:none; }
+.qr-drag-handle:active { cursor:grabbing; }
+.qr-drag-handle span { display:block; width:48px; height:5px; margin:auto; border-radius:99px; background:#b9c7bf; }
 .qr-card code { max-width: 100%; overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .qr-reveal,.qr-card { transition:none; } }
 .kiosk-shell { min-height: 100vh; padding: 32px; display: grid; place-items: center; background: var(--green-950); }
 .kiosk-card { width: min(680px,100%); padding: 35px; color: var(--ink); background: #fff; border-radius: 24px; }
 .kiosk-card > svg { color: var(--green-700); }

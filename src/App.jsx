@@ -410,7 +410,34 @@ function PortalApp({ initialUser, onLogout }) {
   // rather than only as a toast that has drifted away from the action.
   const cancelBooking = async (id) => { try { await api.cancelBooking(user, id); notify("Booking cancelled"); await loadCore(); } catch (error) { notify(error.message, "error"); throw error; } };
   const decide = async (id, decision, comment) => { try { await api.decideApproval(user, id, { decision, comment: comment || undefined }); notify(`Booking ${decision === "approve" ? "approved" : "rejected"}`); await Promise.all([loadCore(), loadRoleData()]); } catch (error) { notify(error.message, "error"); } };
-  const decideEquipment = async (id, decision, note) => { try { const request = equipmentRequests.find((item) => item.id === id); const hasActiveCasualIssue = decision === "approve" && request?.requestType === "CASUAL" && equipmentRequests.some((item) => item.id !== id && item.requesterId === request.requesterId && item.requestType === "CASUAL" && ["APPROVED", "ISSUED", "RETURN_PENDING"].includes(item.status)); await api.decideEquipmentRequest(user, id, { decision, note: note || undefined }); notify(hasActiveCasualIssue ? "Request approved. Warning: this student already has an active casual request or issue; kiosk handover waits until issued equipment is returned." : `Equipment request ${decision === "approve" ? "approved" : "rejected"}`); await loadRoleData(); } catch (error) { notify(error.message, "error"); } };
+  const decideEquipment = async (id, decision, note) => {
+    const request = equipmentRequests.find((item) => item.id === id);
+    const activeIssue = decision === "approve" && request?.requestType === "CASUAL"
+      ? equipmentRequests.find((item) => item.id !== id && item.requesterId === request.requesterId && item.requestType === "CASUAL" && ["ISSUED", "RETURN_PENDING"].includes(item.status))
+      : null;
+    let confirmConcurrentIssue = false;
+    if (activeIssue) {
+      const heldItems = activeIssue.items?.map((item) => `${item.name} × ${item.quantity}`).join(", ") || "casual equipment";
+      confirmConcurrentIssue = window.confirm(`${request.requesterName || request.requesterEmail || "This student"} already has ${heldItems}. Approve another request and allow the kiosk to issue it anyway?`);
+      if (!confirmConcurrentIssue) return;
+    }
+    try {
+      await api.decideEquipmentRequest(user, id, { decision, note: note || undefined, confirmConcurrentIssue });
+      notify(`Equipment request ${decision === "approve" ? "approved" : "rejected"}`);
+      await loadRoleData();
+    } catch (error) {
+      const needsConfirmation = error.status === 409 && error.details?.details?.requiresConfirmation;
+      if (decision === "approve" && !confirmConcurrentIssue && needsConfirmation && window.confirm(`${error.message}\n\nApprove this additional request and allow kiosk handover anyway?`)) {
+        try {
+          await api.decideEquipmentRequest(user, id, { decision, note: note || undefined, confirmConcurrentIssue: true });
+          notify("Equipment request approved after confirmation");
+          await loadRoleData();
+          return;
+        } catch (confirmedError) { notify(confirmedError.message, "error"); return; }
+      }
+      notify(error.message, "error");
+    }
+  };
   const created = async (kind) => { notify(`${titleCase(kind)} added to inventory`); await Promise.all([loadCore(), loadRoleData()]); };
   // DEMO — local-only add/edit/delete for the example fixtures; no backend to persist to yet.
   const updateFixture = (id, patch) => {
