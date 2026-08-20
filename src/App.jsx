@@ -37,6 +37,7 @@ import { AdminOverview, AdminResourcePage, CombinedApprovalsPage } from "./featu
 import { publicPhotoUrl, uploadRecordPhoto, validatePhoto } from "./media.js";
 import { catalogPhotoUrl } from "./catalog-media.js";
 import InventoryOverview from "./features/equipment/InventoryOverview.jsx";
+import VenueModule from "./features/venues/VenueModule.jsx";
 
 const NAV = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -749,7 +750,7 @@ function PortalApp({ initialUser, onLogout }) {
 
   const content = {
     overview: user.role === "admin" ? <AdminOverview venueApprovals={approvals} equipmentRequests={equipmentRequests} equipment={equipment} sports={sports} navigate={navigate} /> : <Overview venues={venues} equipment={equipment} bookings={bookings} matches={matches} navigate={navigate} onBook={openBooking} />,
-    venues: user.role === "admin" ? <AdminResourcePage type="venue" items={venues} loading={loading} user={user} refresh={loadCore} notify={notify} /> : <ResourcePage type="venue" items={venues} loading={loading} onBook={openBooking} refresh={loadCore} />,
+    venues: <VenueModule user={user} venues={venues} notify={notify}>{user.role === "admin" ? <AdminResourcePage type="venue" items={venues} loading={loading} user={user} refresh={loadCore} notify={notify} /> : <ResourcePage type="venue" items={venues} loading={loading} onBook={openBooking} refresh={loadCore} />}</VenueModule>,
     equipment: user.role === "admin" ? <><AdminResourcePage type="equipment" items={equipment} equipmentRequests={equipmentRequests} loading={loading} user={user} refresh={async () => { await Promise.all([loadCore(), loadRoleData()]); }} notify={notify} /><InventoryOverview user={user} notify={notify} /></> : <><EquipmentModule user={user} equipment={equipment} notify={notify} onLogout={onLogout} />{user.role === "approver" && <InventoryOverview user={user} notify={notify} />}</>,
     bookings: <BookingsPage bookings={bookings} loading={loading} onCancel={cancelBooking} navigate={navigate} />,
     sports: (
