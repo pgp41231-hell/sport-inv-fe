@@ -41,6 +41,9 @@
 .camera-guide p { position:absolute; bottom:12px; margin:0; padding:6px 10px; color:white; background:rgba(0,0,0,.6); border-radius:99px; font-size:12px; }
 .camera-actions { display:flex; align-items:center; gap:12px; }
 .camera-actions small { color:var(--muted); }
+.kiosk-warning { display:flex; align-items:flex-start; gap:12px; padding:14px; color:#7a3c00; background:#fff1d6; border:1px solid #efbd68; border-radius:14px; }
+.kiosk-warning > svg { flex:none; margin-top:2px; }
+.kiosk-warning p { margin:4px 0 0; }
 .scan-divider { display:flex; align-items:center; gap:10px; margin:22px 0 12px; color:var(--muted); font-size:11px; text-transform:uppercase; }
 .scan-divider::before,.scan-divider::after { content:""; height:1px; flex:1; background:var(--line); }
 .kiosk-card form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }

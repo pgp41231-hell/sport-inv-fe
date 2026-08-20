@@ -152,7 +152,7 @@ export const api = {
   decideEquipmentRequest: (user, id, body) => apiRequest(`/equipment-module/requests/${id}/decision`, { method: "POST", user, body }),
   equipmentQr: (user, id) => apiRequest(`/equipment-module/requests/${id}/qr`, { method: "POST", user }),
   inspectEquipmentQr: (user, token) => apiRequest("/equipment-module/kiosk/inspect", { method: "POST", user, body: { token } }),
-  confirmEquipmentQr: (user, token, outcomes = [], assetScans = []) => apiRequest("/equipment-module/kiosk/confirm", { method: "POST", user, body: { token, outcomes, assetScans } }),
+  confirmEquipmentQr: (user, token, outcomes = [], assetScans = [], confirmConcurrentIssue = false) => apiRequest("/equipment-module/kiosk/confirm", { method: "POST", user, body: { token, outcomes, assetScans, confirmConcurrentIssue } }),
   equipmentAudit: (user, query) => apiRequest("/equipment-module/audit", { user, query }),
   equipmentInventoryOverview: (user, query) => apiRequest("/equipment-module/inventory", { user, query }),
   transferEquipmentState: (user, id, body) => apiRequest(`/equipment-module/inventory/${id}/transfer`, { method: "POST", user, body }),

@@ -95,10 +95,27 @@ function Kiosk({ user, notify, onLogout }) {
   useEffect(() => stopCamera, [stopCamera]);
   const logout = async () => { stopCamera(); try { await api.logout(user); } catch {} onLogout?.(); };
   const confirm = async () => {
+    const activeIssue = preview?.concurrentIssueWarning;
+    let confirmConcurrentIssue = false;
+    if (activeIssue) {
+      const heldItems = activeIssue.items?.map((item) => `${item.name} × ${item.quantity}`).join(", ") || "other casual equipment";
+      confirmConcurrentIssue = window.confirm(`${preview.requesterName} already holds ${heldItems}. Confirm this additional handover?`);
+      if (!confirmConcurrentIssue) return;
+    }
     try {
       const values = Object.entries(outcomes).map(([equipmentId, value]) => ({ equipmentId, damaged: Number(value.damaged || 0), missing: Number(value.missing || 0), note: value.note || null }));
-      await api.confirmEquipmentQr(user, token.trim(), values, assetScans); report("Custody updated and token consumed"); setToken(""); setPreview(null); setOutcomes({}); setAssetScans([]);
-    } catch (error) { report(error.message, "error"); }
+      await api.confirmEquipmentQr(user, token.trim(), values, assetScans, confirmConcurrentIssue); report("Custody updated and token consumed"); setToken(""); setPreview(null); setOutcomes({}); setAssetScans([]);
+    } catch (error) {
+      const needsConfirmation = error.status === 409 && error.details?.details?.requiresIssuerConfirmation;
+      if (!confirmConcurrentIssue && needsConfirmation && window.confirm(`${error.message}\n\nConfirm this additional handover?`)) {
+        try {
+          const values = Object.entries(outcomes).map(([equipmentId, value]) => ({ equipmentId, damaged: Number(value.damaged || 0), missing: Number(value.missing || 0), note: value.note || null }));
+          await api.confirmEquipmentQr(user, token.trim(), values, assetScans, true); report("Additional custody handover confirmed and token consumed"); setToken(""); setPreview(null); setOutcomes({}); setAssetScans([]);
+        } catch (confirmedError) { report(confirmedError.message, "error"); }
+        return;
+      }
+      report(error.message, "error");
+    }
   };
   const trackedItems = preview?.items?.filter((item) => item.tracking === "ASSET") || [];
   const trackedComplete = trackedItems.every((item) => assetScans.filter((scan) => scan.equipmentId === item.equipmentId).length === Number(item.quantity));
@@ -112,6 +129,7 @@ function Kiosk({ user, notify, onLogout }) {
     {!preview && <><div className="scan-divider"><span>or paste a token</span></div><form onSubmit={inspect}><input value={token} onChange={(event) => setToken(event.target.value)} placeholder="Paste request QR token" /><button className="button button-secondary">Inspect</button></form></>}
     {message && <p className={message.type === "error" ? "form-error" : "form-success"}>{message.type === "error" && <CircleAlert size={16} />}{message.text}</p>}
     {preview && <div className="scan-preview"><h2>{preview.purpose} · {preview.requesterName}</h2>{preview.teamName && <p>Team: {preview.teamName}</p>}
+      {preview.concurrentIssueWarning && <div className="kiosk-warning"><AlertTriangle size={22} /><span><strong>Student already holds equipment</strong><p>{preview.concurrentIssueWarning.items?.map((item) => `${item.name} × ${item.quantity}`).join(", ") || "Another casual issue is active."} Confirm once more before handing over these items.</p></span></div>}
       {preview.items.map((item) => {
         const scans = assetScans.filter((scan) => scan.equipmentId === item.equipmentId);
         return <div className="scan-item" key={item.equipmentId}><strong>{item.name} × {item.quantity}</strong><small>{item.tracking === "ASSET" ? `${scans.length} of ${item.quantity} physical assets accounted for` : "Bulk quantity"}</small>
@@ -121,7 +139,7 @@ function Kiosk({ user, notify, onLogout }) {
         </div>;
       })}
       {trackedItems.length > 0 && <form className="manual-asset-form" onSubmit={(event) => { event.preventDefault(); addAssetTag(manualAssetTag); }}><input value={manualAssetTag} onChange={(event) => setManualAssetTag(event.target.value)} placeholder="Enter asset tag if label cannot be scanned" /><button className="button button-secondary">Add tag</button></form>}
-      <button className="button button-primary button-wide" disabled={!trackedComplete} onClick={confirm}><PackageCheck size={17} />Confirm custody change</button>{!trackedComplete && <small>Scan or account for every tracked asset before confirming.</small>}
+      <button className="button button-primary button-wide" disabled={!trackedComplete} onClick={confirm}><PackageCheck size={17} />{preview.concurrentIssueWarning ? "Confirm additional handover" : "Confirm custody change"}</button>{!trackedComplete && <small>Scan or account for every tracked asset before confirming.</small>}
     </div>}
   </section></main>;
 }
