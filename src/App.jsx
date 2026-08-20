@@ -35,6 +35,7 @@ import "./features/committee/committee.css";
 import EquipmentModule from "./features/equipment/EquipmentModule.jsx";
 import { AdminOverview, AdminResourcePage, CombinedApprovalsPage } from "./features/admin/AdminOperations.jsx";
 import { publicPhotoUrl, uploadRecordPhoto, validatePhoto } from "./media.js";
+import { catalogPhotoUrl } from "./catalog-media.js";
 import InventoryOverview from "./features/equipment/InventoryOverview.jsx";
 
 const NAV = [
@@ -91,7 +92,7 @@ function StatusPill({ value }) {
 }
 
 function ResourceCard({ item, type, onBook }) {
-  const photo = publicPhotoUrl(item.photoPath);
+  const photo = catalogPhotoUrl(item, type);
   const label = type === "venue" ? (item.sportName || item.category) : item.category;
   const details = type === "venue"
     ? null
@@ -100,7 +101,7 @@ function ResourceCard({ item, type, onBook }) {
   return (
     <article className="resource-card">
       <div className={`resource-visual visual-${type}`}>
-        {photo ? <img className="resource-photo" src={photo} alt="" /> : type === "venue" ? <Warehouse size={28} /> : <Dumbbell size={28} />}
+        {photo ? <img className="resource-photo" src={photo} alt={`${item.name} ${type}`} /> : type === "venue" ? <Warehouse size={28} /> : <Dumbbell size={28} />}
         <span>{titleCase(label)}</span>
       </div>
       <div className="resource-content">

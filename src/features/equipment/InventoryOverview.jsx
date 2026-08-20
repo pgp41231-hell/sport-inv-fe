@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Boxes, ChevronDown, ChevronRight, LoaderCircle, PackageOpen, Printer, QrCode, Search, Users, Wrench, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { api } from "../../api.js";
-import { publicPhotoUrl } from "../../media.js";
+import { catalogPhotoUrl } from "../../catalog-media.js";
 import "./inventory-overview.css";
 
 const states = [
@@ -15,8 +15,9 @@ const labelFor = (state) => states.find(([value]) => value === state)?.[1] || st
 const valueFor = (item, state) => Number(item[states.find(([value]) => value === state)?.[2]] || 0);
 function InventoryPhoto({ item }) {
   const [showLabels, setShowLabels] = useState(false);
-  const thumbnail = publicPhotoUrl(item.photoPath)
-    ? <img className="inventory-thumb" src={publicPhotoUrl(item.photoPath)} alt="" />
+  const photo = catalogPhotoUrl(item, "equipment");
+  const thumbnail = photo
+    ? <img className="inventory-thumb" src={photo} alt={item.name} />
     : <span className="inventory-thumb placeholder"><Boxes /></span>;
   if (item.tracking !== "ASSET") return thumbnail;
   return <><button type="button" className="asset-label-trigger" title="View printable asset labels" onClick={() => setShowLabels(true)}>{thumbnail}<QrCode size={15} /></button>{showLabels && <div className="modal-backdrop asset-label-backdrop" onClick={(event) => event.stopPropagation()}><section className="panel asset-label-sheet"><button className="modal-close no-print" onClick={() => setShowLabels(false)}><X /></button><div className="asset-label-heading"><span><p className="eyebrow">Physical asset labels</p><h3>{item.name}</h3></span><button className="button button-primary no-print" onClick={() => window.print()}><Printer size={16} />Print labels</button></div><div className="asset-label-grid">{(item.assets || []).map((asset) => <article key={asset.id}><QRCodeSVG value={`asset:${asset.assetTag}`} size={126} level="M" /><strong>{asset.assetTag}</strong><small>{item.name}{asset.serialNumber ? ` · ${asset.serialNumber}` : ""}</small></article>)}</div></section></div>}</>;

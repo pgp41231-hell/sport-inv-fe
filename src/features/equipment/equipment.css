@@ -1,9 +1,9 @@
 .equipment-request-form { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-items: end; gap: 14px; }
 .equipment-pool-grid,.equipment-request-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); align-items:start; gap: 16px; }
-.equipment-view-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:6px; background:#edf2ee; border:1px solid var(--line); border-radius:18px; }
+.equipment-view-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:6px; background:#f3ead7; border:1px solid var(--line); border-radius:18px; }
 .equipment-view-tabs button { min-height:74px; padding:14px 16px; display:flex; align-items:center; gap:12px; color:var(--muted); background:transparent; border:1px solid transparent; border-radius:13px; cursor:pointer; text-align:left; transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,color .18s ease; }
 .equipment-view-tabs button:hover { color:var(--green-900); background:rgba(255,255,255,.55); }
-.equipment-view-tabs button.active { color:var(--green-900); background:#fff; border-color:#d4dfd8; box-shadow:0 7px 20px rgba(24,69,48,.09); }
+.equipment-view-tabs button.active { color:var(--green-900); background:#fffdf8; border-color:#ddcda9; box-shadow:0 7px 20px rgba(55,38,7,.1); }
 .equipment-view-tabs button > svg { flex:none; }
 .equipment-view-tabs button > span { display:flex; flex:1; flex-direction:column; gap:3px; }
 .equipment-view-tabs button strong { font-size:14px; }
@@ -22,7 +22,7 @@
 .request-card-head > div { display: flex; flex-direction: column; gap: 4px; }
 .request-card-head small { color: var(--muted); }
 .request-items { display: flex; flex-wrap: wrap; gap: 7px; }
-.request-items span { padding: 6px 8px; color: var(--green-900); background: #edf4f0; border-radius: 8px; font-size: 11px; }
+.request-items span { padding: 6px 8px; color: var(--green-900); background: #f6ead0; border-radius: 8px; font-size: 11px; }
 .request-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .overdue,.overdue-chip { display: flex; align-items: center; gap: 6px; color: #a53f3f; font-size: 12px; font-weight: 700; }
 .overdue-chip { padding: 7px 10px; background: #fde7e4; border-radius: 99px; }

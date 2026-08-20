@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Camera, CameraOff, Check, CircleAlert, Clock3, LoaderCircle, LogOut, PackageCheck, Plus, QrCode, RotateCcw, ScanLine, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { api } from "../../api.js";
-import { publicPhotoUrl } from "../../media.js";
+import { catalogPhotoUrl } from "../../catalog-media.js";
 import "./equipment.css";
 
 const label = (value) => String(value || "").toLowerCase().replaceAll("_", " ").replace(/^./, (x) => x.toUpperCase());
@@ -167,7 +167,8 @@ function Kiosk({ user, notify, onLogout }) {
 }
 
 function EquipmentCard({ item, clickable, onRequest }) {
-  const content = <>{publicPhotoUrl(item.photoPath) ? <img className="pool-photo" src={publicPhotoUrl(item.photoPath)} alt="" /> : <span className="pool-photo placeholder"><PackageCheck /></span>}<span className="status status-neutral">CASUAL · {item.tracking || "BULK"}</span><h3>{item.name}</h3><p>{Number(item.casualPoolQuantity || 0)} available</p>{clickable && <small className="card-request-hint">Click to request</small>}</>;
+  const photo = catalogPhotoUrl(item, "equipment");
+  const content = <>{photo ? <img className="pool-photo" src={photo} alt={item.name} /> : <span className="pool-photo placeholder"><PackageCheck /></span>}<span className="status status-neutral">CASUAL · {item.tracking || "BULK"}</span><h3>{item.name}</h3><p>{Number(item.casualPoolQuantity || 0)} available</p>{clickable && <small className="card-request-hint">Click to request</small>}</>;
   return clickable
     ? <button type="button" className="panel pool-card equipment-choice-card" onClick={() => onRequest(item)} aria-label={`Request ${item.name}`}>{content}</button>
     : <article className="panel pool-card">{content}</article>;

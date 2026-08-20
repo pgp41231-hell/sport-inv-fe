@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AdminOverview, AdminResourcePage, CombinedApprovalsPage } from "./AdminOperations.jsx";
 
@@ -33,6 +33,16 @@ describe("Administrator operations views", () => {
     expect(screen.queryByLabelText("Location")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Pool")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /New request/i })).not.toBeInTheDocument();
+  });
+
+  it("makes tracking setup progressive and easy to understand", () => {
+    render(<AdminResourcePage type="equipment" items={[]} equipmentRequests={[]} loading={false} user={admin} refresh={vi.fn()} notify={vi.fn()} />);
+    expect(screen.getByRole("radio", { name: /Bulk quantity/i })).toBeChecked();
+    expect(screen.queryByLabelText("Per-unit condition")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Individually tracked/i }));
+    expect(screen.getByLabelText("Per-unit condition")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Asset labels"), { target: { value: "manual" } });
+    expect(screen.getByLabelText(/Tags or serials, one per unit/i)).toBeInTheDocument();
   });
 
   it("shows only the useful venue fields", () => {
