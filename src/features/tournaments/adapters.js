@@ -55,7 +55,15 @@ export function tournamentToContent(draft, status) {
     blurb: draft.blurb || draft.note || null,
     description: draft.description || null,
     venue: draft.venue || null,
-    startsOn: draft.date || null,
+    // The backend's startsOn column is a plain date (YYYY-MM-DD) and its
+    // schema validates it as one, but a value read back from a GET (see
+    // tournamentFromContent above) comes across as a full ISO timestamp
+    // ("2026-11-08T00:00:00.000Z") — round-tripping that straight back on
+    // an edit fails validation. Truncating to the date portion here handles
+    // both that case and a fresh "YYYY-MM-DD" from AddUpcomingModal/
+    // AddPastModal's <input type="date">, which is already just 10
+    // characters and passes through unchanged.
+    startsOn: draft.date ? String(draft.date).slice(0, 10) : null,
     ...(status ? { status } : {}),
   };
 }
