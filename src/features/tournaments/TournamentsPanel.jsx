@@ -22,6 +22,7 @@ export default function TournamentsPanel({
   onAddUpcoming, onUpdateUpcoming, onDeleteUpcoming,
   onAddPast, onUpdatePast, onDeletePast,
   onOpenGallery, onOpenTournament, onBack,
+  photosAreReal, onAddPhoto, onRemovePhoto,
 }) {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -44,6 +45,9 @@ export default function TournamentsPanel({
         onUpdate={onUpdatePast}
         onDelete={onDeletePast}
         onBack={onBack}
+        photosAreReal={photosAreReal}
+        onAddPhoto={onAddPhoto}
+        onRemovePhoto={onRemovePhoto}
       />
     );
   }

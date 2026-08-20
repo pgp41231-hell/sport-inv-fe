@@ -1,16 +1,28 @@
 import { useState } from "react";
-import { ArrowLeft, CalendarDays, Check, MapPin, Pencil, Trash2, Trophy, X } from "lucide-react";
-import { formatDay, titleCase } from "../../lib/format.js";
+import { ArrowLeft, CalendarDays, Check, ImagePlus, MapPin, Pencil, Trash2, Trophy, X } from "lucide-react";
+import { formatDay } from "../../lib/format.js";
 
 // DEMO — see demoData.js. This is the page reached by clicking a card in
 // TournamentGallery — a real App-level route (App.jsx's selectedTournamentId
 // state), not another local panel swap, specifically so the breadcrumb can
 // show "Fixtures & events / Tournaments / <name>". Admin-only edit/delete,
-// same gate as the rest of this module. The "Moments" strip reuses the exact
-// gradient-and-icon cover treatment from the gallery card and the Upcoming/
-// Past boxes — same visual language, just smaller — rather than inventing a
-// fourth way to fake a photo.
-export default function TournamentDetail({ tournament, canEdit, onUpdate, onDelete, onBack }) {
+// same gate as the rest of this module. "Photos" is real images from
+// `tournament.photos`, shown only for tournaments that have them — the
+// gradient-and-icon "Moments" placeholder strip that used to sit below it
+// (one fake tile per entry in `tournament.sports`) was removed once real
+// photos existed; `sports` itself is untouched and still editable below, it
+// just has no on-page display of its own right now.
+//
+// Adding a photo (admin-only) reads the chosen file(s) as data URLs via
+// FileReader and appends them to `tournament.photos` through the same
+// `onUpdate` the text-field edit form already uses — no new prop, no
+// backend: it's exactly as "demo" as everything else here (in-memory only,
+// gone on refresh), it just happens to work because a data: URL is a
+// complete, self-contained image, not a reference to a file on disk.
+// Removing one is a direct click, no confirm step — unlike deleting the
+// whole tournament, losing one photo from a set is low-stakes and trivial
+// to re-add, so the extra friction isn't worth it here.
+export default function TournamentDetail({ tournament, canEdit, onUpdate, onDelete, onBack, photosAreReal, onAddPhoto, onRemovePhoto }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -41,6 +53,35 @@ export default function TournamentDetail({ tournament, canEdit, onUpdate, onDele
     setDraft(null);
   };
   const confirmedDelete = () => { onDelete(tournament.id); onBack(); };
+
+  const addPhotos = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ""; // lets the same file be picked again later
+    if (!files.length) return;
+    if (photosAreReal) {
+      // Raw File objects, not read here — the parent decides how a photo
+      // actually gets stored (compressed upload to Supabase Storage, or a
+      // data: URL fallback when Storage isn't configured — see App.jsx).
+      // One real gallery row per file; onAddPhoto's caller reloads the real
+      // photo list afterward, same reload-after-mutation pattern as
+      // everywhere else real data is edited in this app.
+      for (const file of files) await onAddPhoto(tournament.id, file);
+      return;
+    }
+    const readAsDataUrl = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const dataUrls = await Promise.all(files.map(readAsDataUrl));
+    const added = dataUrls.map((url, index) => ({ id: `local-${Date.now()}-${index}`, url }));
+    onUpdate(tournament.id, { photos: [...(tournament.photos || []), ...added] });
+  };
+  const removePhoto = (photoId) => {
+    if (photosAreReal) { onRemovePhoto(photoId); return; }
+    onUpdate(tournament.id, { photos: tournament.photos.filter((photo) => photo.id !== photoId) });
+  };
 
   return (
     <section className="panel tm-panel">
@@ -91,17 +132,38 @@ export default function TournamentDetail({ tournament, canEdit, onUpdate, onDele
         </>
       )}
 
-      {tournament.sports?.length > 0 && (
+      {(tournament.photos?.length > 0 || canEdit) && (
         <>
-          <p className="tm-detail-subhead">Moments</p>
-          <div className="tm-moments-grid">
-            {tournament.sports.map((sport, index) => (
-              <div className={`tm-moment tm-cover-${(index % 4) + 1}`} key={sport}>
-                <Trophy size={20} aria-hidden="true" />
-                <span>{titleCase(sport)}</span>
-              </div>
-            ))}
+          <div className="tm-photos-head">
+            <p className="tm-detail-subhead">Photos</p>
+            {canEdit && (
+              <label className="text-button tm-photo-add">
+                <ImagePlus size={15} aria-hidden="true" />Add photo
+                <input type="file" accept="image/*" multiple hidden onChange={addPhotos} />
+              </label>
+            )}
           </div>
+          {tournament.photos?.length > 0 ? (
+            <div className="tm-photo-grid">
+              {tournament.photos.map((photo, index) => (
+                <div className="tm-photo-item" key={photo.id}>
+                  <img
+                    className="tm-photo"
+                    src={photo.url}
+                    alt={`${tournament.name} — photo ${index + 1}`}
+                    loading="lazy"
+                  />
+                  {canEdit && (
+                    <button type="button" className="icon-button tm-photo-remove" onClick={() => removePhoto(photo.id)} aria-label={`Remove photo ${index + 1}`}>
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted-copy">No photos yet — add the first one.</p>
+          )}
         </>
       )}
     </section>

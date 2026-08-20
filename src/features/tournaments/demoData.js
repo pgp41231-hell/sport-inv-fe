@@ -17,6 +17,18 @@ export const UPCOMING_TOURNAMENTS_DEMO = [
 // through a fixed set by position (see TournamentGallery/TournamentDetail)
 // rather than being stored per row — there's no real image to pick a color
 // to match, so there's nothing meaningful to store here for that.
+//
+// `photos` (optional) is a list of `{id, url}` — real image paths, shown as
+// an actual photo grid on that tournament's detail page — see
+// TournamentDetail's "Photos" section. Unlike everything else here, these
+// are genuine static assets, not a fake gradient placeholder: drop the
+// files under `public/tournaments/<slug>/` (served at
+// `/tournaments/<slug>/…` — see the README in `public/tournaments/`) and
+// list their paths here. A tournament with no `photos` (or an empty array)
+// just doesn't render that section. `{id, url}`, not a bare string, so this
+// shape matches a real gallery record from the backend exactly — the id is
+// what a real remove-photo click deletes; for these demo ones it's never
+// looked up anywhere, so any unique string does.
 export const PAST_TOURNAMENTS_DEMO = [
   {
     id: "past-1",
@@ -26,6 +38,13 @@ export const PAST_TOURNAMENTS_DEMO = [
     venue: "Sports Complex",
     description: "Sangram 2025 brought the whole campus out for four days of cricket, football, and badminton, capped by a last-over cricket final that went down to the wire.",
     sports: ["cricket", "football", "badminton"],
+    photos: [
+      { id: "demo-photo-1", url: "/tournaments/sangram-2025/1.jpeg" },
+      { id: "demo-photo-2", url: "/tournaments/sangram-2025/2.jpeg" },
+      { id: "demo-photo-3", url: "/tournaments/sangram-2025/3.jpeg" },
+      { id: "demo-photo-4", url: "/tournaments/sangram-2025/4.jpeg" },
+      { id: "demo-photo-5", url: "/tournaments/sangram-2025/5.jpeg" },
+    ],
   },
   {
     id: "past-2",

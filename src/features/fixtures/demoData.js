@@ -6,9 +6,9 @@
 // README in this directory for how add/edit/delete work against them.
 //
 // Every fixture/schedule row carries a `status` of "live", "upcoming", or
-// (schedule only) "completed". "live" fixture cards additionally carry a
-// score per team; the others don't. All of it is editable and deletable by
-// the scorekeeper/admin identities — see FixturesPanel and ScheduleModal.
+// "completed". "live" and "completed" fixture cards additionally carry a
+// score per team; "upcoming" ones don't. All of it is editable and deletable
+// by the scorekeeper/admin identities — see FixturesPanel and ScheduleModal.
 
 export const FIXTURES_DEMO = [
   {
@@ -88,6 +88,32 @@ export const FIXTURES_DEMO = [
       { name: "Section H" },
     ],
     note: "Fri · 4:00 PM",
+  },
+  {
+    id: "demo-badminton-2",
+    sport: "badminton",
+    tournament: "Sangram",
+    stage: "Men's Doubles · Quarterfinal",
+    venue: "Indoor Court 1",
+    status: "completed",
+    teams: [
+      { name: "Karan Shah & Dev Patel", score: "21 · 19" },
+      { name: "Rohan Iyer & Aman Gupta", score: "15 · 21" },
+    ],
+    note: "Karan Shah & Dev Patel won 2–0",
+  },
+  {
+    id: "demo-cricket-2",
+    sport: "cricket",
+    tournament: "Sangram",
+    stage: "Group A · League match",
+    venue: "Main Cricket Ground",
+    status: "completed",
+    teams: [
+      { name: "Section A", score: "168/7" },
+      { name: "Section E", score: "142/9" },
+    ],
+    note: "Section A won by 26 runs",
   },
 ];
 

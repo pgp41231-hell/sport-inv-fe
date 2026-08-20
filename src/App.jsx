@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowRight, BadgeCheck, CalendarDays, Check, ChevronDown, CircleAlert,
   Clock3, Dumbbell, Home, LayoutDashboard, LoaderCircle, LogOut, MapPin, Menu, Plus,
   Save, Search, Settings, ShieldCheck, Sparkles, Trophy, Users, Warehouse, X,
 } from "lucide-react";
-import { API_BASE_URL, api } from "./api.js";
+import { API_BASE_URL, api, isMissingEndpoint } from "./api.js";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import AuthPage from "./AuthPage.jsx";
 import { titleCase } from "./lib/format.js";
@@ -12,23 +12,29 @@ import { titleCase } from "./lib/format.js";
 import BookingWizard from "./features/booking/BookingWizard.jsx";
 import MyBookingsPanel from "./features/booking/MyBookingsPanel.jsx";
 import "./features/booking/booking.css";
-// Fixtures & schedule (demo — no backend endpoint exists yet). See
-// src/features/fixtures/README.md.
+// Fixtures & schedule. Cards and the points table load from the backend's
+// sports-content endpoints when there's real data there (see adapters.js);
+// the Schedule modal is still demo-only — see its own README note on why
+// that one wasn't part of this pass.
 import FixturesPanel from "./features/fixtures/FixturesPanel.jsx";
-import { FIXTURES_DEMO, POINTS_TABLE_DEMO, SCHEDULE_DEMO } from "./features/fixtures/demoData.js";
+import { FIXTURES_DEMO, POINTS_SPORTS, POINTS_TABLE_DEMO, SCHEDULE_DEMO } from "./features/fixtures/demoData.js";
+import { fixtureToMatch, matchToFixture, standingsToPointsRows } from "./features/fixtures/adapters.js";
 import "./features/fixtures/fixtures.css";
-// Tournaments (demo — no backend endpoint exists yet). See
-// src/features/tournaments/README.md.
+// Tournaments. Loads from the backend's sports-content endpoints (tournaments
+// + gallery) when there's real data there; falls back to the demo arrays
+// otherwise — see adapters.js and the README's degradation note.
 import TournamentsPanel from "./features/tournaments/TournamentsPanel.jsx";
 import { PAST_TOURNAMENTS_DEMO, UPCOMING_TOURNAMENTS_DEMO } from "./features/tournaments/demoData.js";
+import { photoFromGalleryItem, splitTournaments, tournamentToContent } from "./features/tournaments/adapters.js";
 import "./features/tournaments/tournaments.css";
-// Sports Committee (demo — no backend data yet, see demoData.js).
+// Sports Committee. Loads from the backend's /committee endpoint when
+// there's real data there; falls back to COMMITTEE_DEMO otherwise.
 import CommitteePanel from "./features/committee/CommitteePanel.jsx";
 import { COMMITTEE_DEMO } from "./features/committee/demoData.js";
 import "./features/committee/committee.css";
 import EquipmentModule from "./features/equipment/EquipmentModule.jsx";
 import { AdminOverview, AdminResourcePage, CombinedApprovalsPage } from "./features/admin/AdminOperations.jsx";
-import { publicPhotoUrl } from "./media.js";
+import { publicPhotoUrl, uploadRecordPhoto, validatePhoto } from "./media.js";
 import InventoryOverview from "./features/equipment/InventoryOverview.jsx";
 
 const NAV = [
@@ -184,6 +190,8 @@ function SportsPage({
   onAddUpcomingTournament, onUpdateUpcomingTournament, onDeleteUpcomingTournament,
   onAddPastTournament, onUpdatePastTournament, onDeletePastTournament,
   tournamentsView, selectedTournament, onOpenTournamentGallery, onOpenTournament, onBackTournaments,
+  photosAreReal, onAddPhoto, onRemovePhoto,
+  committee,
 }) {
   // Fixtures and Sports Committee are the "Fixtures & events" landing page's
   // own content — once Tournaments has drilled into the gallery or a
@@ -207,8 +215,9 @@ function SportsPage({
         onAddUpcoming={onAddUpcomingTournament} onUpdateUpcoming={onUpdateUpcomingTournament} onDeleteUpcoming={onDeleteUpcomingTournament}
         onAddPast={onAddPastTournament} onUpdatePast={onUpdatePastTournament} onDeletePast={onDeletePastTournament}
         onOpenGallery={onOpenTournamentGallery} onOpenTournament={onOpenTournament} onBack={onBackTournaments}
+        photosAreReal={photosAreReal} onAddPhoto={onAddPhoto} onRemovePhoto={onRemovePhoto}
       />
-      {onLandingView && <CommitteePanel committee={COMMITTEE_DEMO} />}
+      {onLandingView && <CommitteePanel committee={committee} />}
     </div>
   );
 }
@@ -352,18 +361,38 @@ function PortalApp({ initialUser, onLogout }) {
   const [equipmentRequests, setEquipmentRequests] = useState([]);
   const [sports, setSports] = useState([]);
   const [audit, setAudit] = useState([]);
-  // DEMO — local-only state for the example fixtures; see FIXTURES_DEMO.
+  // Fixtures, points table, tournaments, and committee all start out on the
+  // demo arrays and switch to real backend data the moment any is found —
+  // see loadSportsContent below. The *AreReal flags gate whether each
+  // section's add/edit/delete handlers write to the real backend (and
+  // reload) or just mutate the local array (the original demo behaviour),
+  // so this degrades exactly like the EPIC-03/04 holds/recommendations
+  // endpoints already do: a backend with none of this deployed yet leaves
+  // the page exactly as it was before this rewiring.
   const [fixtures, setFixtures] = useState(FIXTURES_DEMO);
-  // DEMO — local-only state for the example schedule; see SCHEDULE_DEMO.
+  const [fixturesAreReal, setFixturesAreReal] = useState(false);
+  // DEMO — local-only state for the example schedule; no backend equivalent
+  // yet (see features/fixtures/README.md) — out of scope for this pass.
   const [schedule, setSchedule] = useState(SCHEDULE_DEMO);
-  // DEMO — local-only state for the example points table; see POINTS_TABLE_DEMO.
   const [points, setPoints] = useState(POINTS_TABLE_DEMO);
-  // DEMO — local-only state for the example tournaments; see demoData.js in
-  // features/tournaments. The real GET /public/tournaments fetch (which only
-  // ever returned {id, name, status}, no dates or history) was dropped from
-  // loadCore below in favor of these two, superseding it entirely.
+  const [standingsAreReal, setStandingsAreReal] = useState(false);
+  // "section|sportKey" -> the backend standings row id, so updatePointsSection
+  // knows whether a cell needs a PATCH (row already exists) or a POST (first
+  // time this section/sport pair has a value). Doesn't drive rendering, so a
+  // ref instead of state.
+  const standingsIndexRef = useRef(new Map());
   const [upcomingTournaments, setUpcomingTournaments] = useState(UPCOMING_TOURNAMENTS_DEMO);
   const [pastTournaments, setPastTournaments] = useState(PAST_TOURNAMENTS_DEMO);
+  const [tournamentsAreReal, setTournamentsAreReal] = useState(false);
+  // Which tournament standings belong to, and where a newly-added fixture
+  // attaches — the live one if there is one, else the most recent
+  // published one. Doesn't drive rendering directly, so a ref.
+  const currentTournamentIdRef = useRef(null);
+  const [committee, setCommittee] = useState(COMMITTEE_DEMO);
+  // tournamentId -> that tournament's real photos ({id, url}[]), fetched
+  // lazily (only once its detail page is actually opened, not for every
+  // tournament in the gallery up front) — see openTournament below.
+  const [tournamentPhotosById, setTournamentPhotosById] = useState({});
   // Sub-navigation within the Fixtures & events tab: "main" (the two boxes)
   // or "gallery" (the past-tournaments grid). A selected tournament id
   // always means "show its detail page", regardless of this value — see
@@ -398,6 +427,82 @@ function PortalApp({ initialUser, onLogout }) {
       try { setAudit((await api.audit(user)).data || []); } catch (error) { if (error.status !== 403) notify(error.message, "error"); }
     } else setAudit([]);
   }, [user, notify]);
+
+  // Tournaments, committee, and standings — the sports-content endpoints
+  // this app didn't used to have real data behind (see api.js's "Sports
+  // content" section). Public reads, so no `user` needed; runs once, not
+  // tied to loadCore/loadRoleData's role-driven refresh. Any type with no
+  // real rows yet (empty list, or the endpoint 404ing on an older backend)
+  // just leaves that section on its demo array — "real data if there is
+  // any, else the example so the page isn't empty" is the rule throughout.
+  const loadSportsContent = useCallback(async () => {
+    const results = await Promise.allSettled([
+      api.publicContent("tournaments"),
+      api.publicContent("committee"),
+    ]);
+    const [tournamentsResult, committeeResult] = results;
+
+    let tournamentRecords = [];
+    if (tournamentsResult.status === "fulfilled") tournamentRecords = tournamentsResult.value.data || [];
+    else if (!isMissingEndpoint(tournamentsResult.reason)) notify(tournamentsResult.reason.message, "error");
+    currentTournamentIdRef.current = tournamentRecords.find((item) => item.status === "live")?.id
+      || tournamentRecords.find((item) => item.status === "published")?.id
+      || tournamentRecords[0]?.id
+      || null;
+    if (tournamentRecords.length) {
+      const { upcoming, past } = splitTournaments(tournamentRecords);
+      if (upcoming.length || past.length) {
+        setUpcomingTournaments(upcoming);
+        setPastTournaments(past);
+        setTournamentsAreReal(true);
+      }
+    }
+
+    if (committeeResult.status === "fulfilled") {
+      const committeeRecords = committeeResult.value.data || [];
+      if (committeeRecords.length) setCommittee(committeeRecords);
+    } else if (!isMissingEndpoint(committeeResult.reason)) notify(committeeResult.reason.message, "error");
+
+    // Standings are scoped to the current tournament, so they need
+    // currentTournamentIdRef resolved above first — not part of the
+    // allSettled batch.
+    if (currentTournamentIdRef.current) {
+      try {
+        const standingsResponse = await api.publicContent("standings", { tournamentId: currentTournamentIdRef.current });
+        const standingsRecords = standingsResponse.data || [];
+        if (standingsRecords.length) {
+          const { rows, index } = standingsToPointsRows(standingsRecords, POINTS_SPORTS);
+          if (rows.length) {
+            setPoints(rows);
+            standingsIndexRef.current = index;
+            setStandingsAreReal(true);
+          }
+        }
+      } catch (error) { if (!isMissingEndpoint(error)) notify(error.message, "error"); }
+    }
+  }, [notify]);
+
+  useEffect(() => { loadSportsContent(); }, [loadSportsContent]);
+
+  // Fixtures cards are matches (raw backend records, already fetched into
+  // `matches` by loadCore for the Overview page's match-peek widget) joined
+  // against the tournament names loaded above. Recomputes whenever either
+  // side changes, rather than fetching matches a second time here.
+  useEffect(() => {
+    if (!matches.length) return;
+    const tournamentNameById = new Map([...upcomingTournaments, ...pastTournaments].map((item) => [item.id, item.name]));
+    const mapped = matches.map((record) => matchToFixture(record, tournamentNameById.get(record.tournamentId))).filter(Boolean);
+    if (mapped.length) { setFixtures(mapped); setFixturesAreReal(true); }
+  }, [matches, upcomingTournaments, pastTournaments]);
+
+  // A tournament's photos are fetched only once its detail page is actually
+  // opened (openTournament below), not for every card in the gallery.
+  const loadTournamentPhotos = useCallback(async (tournamentId) => {
+    try {
+      const response = await api.publicContent("gallery", { tournamentId });
+      setTournamentPhotosById((current) => ({ ...current, [tournamentId]: (response.data || []).map(photoFromGalleryItem) }));
+    } catch (error) { if (!isMissingEndpoint(error)) notify(error.message, "error"); }
+  }, [notify]);
 
   useEffect(() => { loadCore(); loadRoleData(); }, [loadCore, loadRoleData]);
   const allowedNav = useMemo(() => NAV.filter((item) => (!item.roles || item.roles.includes(user.role)) && !item.hiddenFor?.includes(user.role)), [user.role]);
@@ -439,20 +544,48 @@ function PortalApp({ initialUser, onLogout }) {
     }
   };
   const created = async (kind) => { notify(`${titleCase(kind)} added to inventory`); await Promise.all([loadCore(), loadRoleData()]); };
-  // DEMO — local-only add/edit/delete for the example fixtures; no backend to persist to yet.
-  const updateFixture = (id, patch) => {
+  // Fixtures cards: once fixturesAreReal (or there's a real current
+  // tournament for a brand-new one to attach to, so the first real fixture
+  // has somewhere to go), these call the backend and reload; otherwise it's
+  // the original local-only demo mutation.
+  const updateFixture = async (id, patch) => {
+    if (fixturesAreReal) {
+      try {
+        const merged = { ...fixtures.find((item) => item.id === id), ...patch };
+        await api.updateContent(user, "matches", id, fixtureToMatch(merged, currentTournamentIdRef.current));
+        notify("Fixture updated");
+        await loadCore();
+      } catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setFixtures((current) => current.map((match) => match.id === id ? { ...match, ...patch } : match));
     notify("Fixture updated (example data, not saved to a server)");
   };
-  const addFixture = (fixture) => {
+  const addFixture = async (fixture) => {
+    if (fixturesAreReal || currentTournamentIdRef.current) {
+      try {
+        await api.createContent(user, "matches", fixtureToMatch(fixture, currentTournamentIdRef.current));
+        notify("Fixture added");
+        setFixturesAreReal(true);
+        await loadCore();
+      } catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setFixtures((current) => [...current, fixture]);
     notify("Fixture added (example data, not saved to a server)");
   };
-  const deleteFixture = (id) => {
+  const deleteFixture = async (id) => {
+    if (fixturesAreReal) {
+      try { await api.deleteContent(user, "matches", id); notify("Fixture deleted"); await loadCore(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setFixtures((current) => current.filter((match) => match.id !== id));
     notify("Fixture deleted (example data, not saved to a server)");
   };
-  // DEMO — local-only add/edit/delete for the example schedule; no backend to persist to yet.
+  // DEMO — local-only add/edit/delete for the example schedule; no backend
+  // equivalent yet (see features/fixtures/README.md) — out of scope for
+  // this pass, unlike the fixture cards and points table above/below.
   const updateScheduleMatch = (id, patch) => {
     setSchedule((current) => current.map((group) => ({
       ...group,
@@ -468,49 +601,143 @@ function PortalApp({ initialUser, onLogout }) {
     setSchedule((current) => current.map((group) => ({ ...group, matches: group.matches.filter((match) => match.id !== id) })));
     notify("Schedule entry deleted (example data, not saved to a server)");
   };
-  // DEMO — local-only edit for the example points table; no backend to persist to yet.
-  const updatePointsSection = (section, scores) => {
+  // Points table: real (PATCH a section/sport pair that already has a
+  // standings row, POST one that doesn't yet — standingsIndexRef tracks
+  // which) once standingsAreReal or there's a real current tournament to
+  // attach new rows to; else the original local-only demo mutation.
+  const updatePointsSection = async (section, scores) => {
+    if (standingsAreReal || currentTournamentIdRef.current) {
+      try {
+        await Promise.all(POINTS_SPORTS.map(async (sport) => {
+          const pointsValue = Number(scores[sport.key]) || 0;
+          const key = `${section}|${sport.key}`;
+          const existingId = standingsIndexRef.current.get(key);
+          if (existingId) await api.updateContent(user, "standings", existingId, { points: pointsValue });
+          else {
+            const created = await api.createContent(user, "standings", { tournamentId: currentTournamentIdRef.current, section, sport: sport.key, points: pointsValue });
+            standingsIndexRef.current.set(key, created.data.id);
+          }
+        }));
+        setStandingsAreReal(true);
+        setPoints((current) => current.map((row) => row.section === section ? { ...row, scores } : row));
+        notify("Points table updated");
+      } catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setPoints((current) => current.map((row) => row.section === section ? { ...row, scores } : row));
     notify("Points table updated (example data, not saved to a server)");
   };
-  // DEMO — local-only add/edit/delete for the example tournaments; no backend to persist to yet.
-  const addUpcomingTournament = (tournament) => {
+  // Tournaments: real (POST/PATCH/DELETE tournaments, then reload) once
+  // tournamentsAreReal; else the original local-only demo mutation. status
+  // is only ever sent on create — see tournamentToContent's own comment.
+  const addUpcomingTournament = async (tournament) => {
+    if (tournamentsAreReal) {
+      try { await api.createContent(user, "tournaments", tournamentToContent(tournament, "published")); notify("Tournament added"); await loadSportsContent(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setUpcomingTournaments((current) => [...current, tournament]);
     notify("Tournament added (example data, not saved to a server)");
   };
-  const updateUpcomingTournament = (id, patch) => {
+  const updateUpcomingTournament = async (id, patch) => {
+    if (tournamentsAreReal) {
+      try { await api.updateContent(user, "tournaments", id, tournamentToContent(patch)); notify("Tournament updated"); await loadSportsContent(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setUpcomingTournaments((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
     notify("Tournament updated (example data, not saved to a server)");
   };
-  const deleteUpcomingTournament = (id) => {
+  const deleteUpcomingTournament = async (id) => {
+    if (tournamentsAreReal) {
+      try { await api.deleteContent(user, "tournaments", id); notify("Tournament deleted"); await loadSportsContent(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setUpcomingTournaments((current) => current.filter((item) => item.id !== id));
     notify("Tournament deleted (example data, not saved to a server)");
   };
-  const addPastTournament = (tournament) => {
+  const addPastTournament = async (tournament) => {
+    if (tournamentsAreReal) {
+      try { await api.createContent(user, "tournaments", tournamentToContent(tournament, "completed")); notify("Tournament added"); await loadSportsContent(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setPastTournaments((current) => [...current, tournament]);
     notify("Tournament added (example data, not saved to a server)");
   };
-  const updatePastTournament = (id, patch) => {
+  const updatePastTournament = async (id, patch) => {
+    if (tournamentsAreReal) {
+      try { await api.updateContent(user, "tournaments", id, tournamentToContent(patch)); notify("Tournament updated"); await loadSportsContent(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setPastTournaments((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
     notify("Tournament updated (example data, not saved to a server)");
   };
-  const deletePastTournament = (id) => {
+  const deletePastTournament = async (id) => {
+    if (tournamentsAreReal) {
+      try { await api.deleteContent(user, "tournaments", id); notify("Tournament deleted"); await loadSportsContent(); }
+      catch (error) { notify(error.message, "error"); }
+      return;
+    }
     setPastTournaments((current) => current.filter((item) => item.id !== id));
     notify("Tournament deleted (example data, not saved to a server)");
+  };
+  // Tournament photos: real (upload + POST/DELETE gallery, then reload that
+  // tournament's photos) once tournamentsAreReal, else the same local-only
+  // array mutation TournamentDetail already did before this rewiring —
+  // see TournamentDetail.jsx's addPhotos/removePhoto.
+  const addTournamentPhoto = async (tournamentId, file) => {
+    try {
+      let mediaUrl;
+      if (supabaseConfigured) {
+        const path = await uploadRecordPhoto(`tournaments/${tournamentId}`, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, file);
+        mediaUrl = publicPhotoUrl(path);
+      } else {
+        validatePhoto(file);
+        mediaUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+      await api.createContent(user, "gallery", { title: "Tournament photo", mediaUrl, tournamentId });
+      notify("Photo added");
+      await loadTournamentPhotos(tournamentId);
+    } catch (error) { notify(error.message, "error"); }
+  };
+  const removeTournamentPhoto = async (photoId) => {
+    try {
+      await api.deleteContent(user, "gallery", photoId);
+      notify("Photo removed");
+      if (selectedTournamentId) await loadTournamentPhotos(selectedTournamentId);
+    } catch (error) { notify(error.message, "error"); }
   };
   // Sub-navigation for the Tournaments section of the Fixtures & events tab
   // (main two-box view / gallery / a specific tournament's detail page) —
   // see tournamentsView/selectedTournamentId above for why this lives here
   // instead of inside TournamentsPanel.
   const openTournamentGallery = () => { setTournamentsView("gallery"); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const openTournament = (id) => { setSelectedTournamentId(id); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const openTournament = (id) => {
+    setSelectedTournamentId(id);
+    if (tournamentsAreReal) loadTournamentPhotos(id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const backTournaments = () => {
     if (selectedTournamentId) setSelectedTournamentId(null);
     else setTournamentsView("main");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const tournamentsPageView = selectedTournamentId ? "detail" : tournamentsView;
-  const selectedTournament = selectedTournamentId ? pastTournaments.find((item) => item.id === selectedTournamentId) : null;
+  const selectedTournamentBase = selectedTournamentId ? pastTournaments.find((item) => item.id === selectedTournamentId) : null;
+  // Real photos are fetched separately (loadTournamentPhotos, above) rather
+  // than living on the tournament record itself, so merge them in here —
+  // TournamentDetail still just reads tournament.photos either way.
+  const selectedTournament = selectedTournamentBase && tournamentsAreReal
+    ? { ...selectedTournamentBase, photos: tournamentPhotosById[selectedTournamentBase.id] || [] }
+    : selectedTournamentBase;
   // The one place a page needs more than its own NAV label: drilling into a
   // tournament adds "Tournaments" and its name as extra breadcrumb segments.
   // Every other page is still just [NAV label], same as always.
@@ -538,6 +765,8 @@ function PortalApp({ initialUser, onLogout }) {
         onAddPastTournament={addPastTournament} onUpdatePastTournament={updatePastTournament} onDeletePastTournament={deletePastTournament}
         tournamentsView={tournamentsPageView} selectedTournament={selectedTournament}
         onOpenTournamentGallery={openTournamentGallery} onOpenTournament={openTournament} onBackTournaments={backTournaments}
+        photosAreReal={tournamentsAreReal} onAddPhoto={addTournamentPhoto} onRemovePhoto={removeTournamentPhoto}
+        committee={committee}
       />
     ),
     approvals: <CombinedApprovalsPage user={user} venueApprovals={approvals} equipmentRequests={equipmentRequests} sports={sports} loading={loading} onVenueDecision={decide} onEquipmentDecision={decideEquipment} />,
